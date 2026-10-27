@@ -1,0 +1,11 @@
+{
+  "name": "musicteacher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Learn scales and chords on guitar and piano.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "serve": "python3 scripts/serve.py 8000"
+  }
+}

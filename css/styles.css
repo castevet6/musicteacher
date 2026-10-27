@@ -1,0 +1,336 @@
+:root {
+  --bg: #f5f3ee;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --muted: #6b6f76;
+  --border: #e0dcd3;
+  --accent: #2f6fde;
+
+  --scale: #2f6fde;
+  --root: #d9822b;
+  --blue-note: #8b5cf6;
+  --out: #e04f5f;
+  --chord: #1f9d6b;
+  --ring: #111827;
+  --dot-text: #ffffff;
+
+  --wood: #6b4528;
+  --fret: #c9c4ba;
+  --string: #d8d2c4;
+  --inlay: #efe6d4;
+  --white-key: #fdfdfb;
+  --black-key: #23252a;
+  --key-border: #b9b4aa;
+
+  --radius: 10px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171b;
+    --surface: #1e2126;
+    --text: #e8e6e1;
+    --muted: #9a9ea6;
+    --border: #2f333a;
+    --accent: #6ea0ff;
+    --scale: #4f86f0;
+    --ring: #f5f5f5;
+    --wood: #4a3220;
+    --white-key: #e9e7e2;
+    --black-key: #0d0e10;
+    --key-border: #6b6f76;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.45;
+}
+
+/* ---------- Header ---------- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 { font-size: 1.25rem; margin: 0; }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+
+.segmented {
+  display: inline-flex;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+
+.segmented span {
+  display: inline-block;
+  min-height: 38px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.segmented input:checked + span { background: var(--accent); color: #fff; }
+.segmented input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.field { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; }
+
+.field select {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+}
+
+/* ---------- Layout ---------- */
+
+.layout {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1280px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+}
+
+@media (max-width: 600px) {
+  .topbar { padding: 12px 16px; }
+  .layout { padding: 12px 16px; gap: 14px; }
+}
+
+.instrument, .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-width: 0;
+}
+
+.instrument-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.instrument-scroll svg { display: block; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.swatch-root { background: var(--root); }
+.swatch-scale { background: var(--scale); }
+.swatch-blue { background: var(--blue-note); }
+.swatch-out { background: var(--out); }
+.swatch-chord { background: var(--chord); }
+
+/* ---------- Note positions (shared by guitar and piano) ---------- */
+
+.pos { cursor: pointer; outline: none; }
+
+.pos .dot, .pos .label { opacity: 0; transition: opacity 0.12s; }
+
+.pos .dot { fill: var(--scale); }
+.pos.root .dot { fill: var(--root); }
+.pos.blue-note .dot { fill: var(--blue-note); }
+.pos.out-of-scale .dot { fill: var(--out); }
+.pos.chord-tone .dot { fill: var(--chord); }
+
+.pos.in-scale .dot, .pos.in-scale .label,
+.pos.selected .dot, .pos.selected .label,
+.pos.selected-pc .dot, .pos.selected-pc .label,
+.pos.chord-tone .dot, .pos.chord-tone .label { opacity: 1; }
+
+.pos:not(.in-scale):not(.selected):not(.selected-pc):not(.chord-tone):hover .dot { opacity: 0.25; fill: var(--muted); }
+.pos:focus-visible .dot { opacity: 1; stroke: var(--accent); stroke-width: 3; }
+.pos:focus-visible .label { opacity: 1; }
+
+.pos.selected .dot { stroke: var(--ring); stroke-width: 3; }
+.pos.selected-pc .dot { stroke: var(--ring); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.pos.chord-tone.root .dot { stroke: var(--root); stroke-width: 3; }
+
+.pos.muted .dot, .pos.muted .label { opacity: 0.22; }
+
+.pos .label {
+  fill: var(--dot-text);
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.pos .role {
+  fill: var(--chord);
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: start;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
+/* ---------- Guitar ---------- */
+
+.guitar .fretboard { fill: var(--wood); }
+.guitar .fret { stroke: var(--fret); stroke-width: 2; }
+.guitar .nut { stroke: var(--inlay); stroke-width: 6; }
+.guitar .string { stroke: var(--string); }
+.guitar .inlay { fill: var(--inlay); opacity: 0.55; }
+.guitar .fret-number { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+.guitar .hit-area { fill: transparent; }
+.guitar .role { stroke: var(--wood); }
+.guitar .open .role { stroke: var(--surface); }
+
+/* ---------- Piano ---------- */
+
+.piano .white .key-body { fill: var(--white-key); stroke: var(--key-border); stroke-width: 1; }
+.piano .black .key-body { fill: var(--black-key); }
+.piano .white:hover .key-body { fill: color-mix(in srgb, var(--white-key) 88%, var(--accent)); }
+.piano .black:hover .key-body { fill: color-mix(in srgb, var(--black-key) 80%, var(--accent)); }
+.piano .white.selected .key-body { fill: color-mix(in srgb, var(--white-key) 82%, var(--accent)); }
+.piano .black.selected .key-body { fill: color-mix(in srgb, var(--black-key) 70%, var(--accent)); }
+.piano .black .role { stroke: var(--black-key); }
+.piano .octave-label { fill: var(--muted); font-size: 10px; pointer-events: none; }
+
+/* ---------- Chord panel ---------- */
+
+.panel h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.note-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.2em;
+  height: 2.2em;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--scale);
+  font-weight: 700;
+}
+.note-badge.out { background: var(--out); }
+
+.hint { color: var(--muted); margin: 0; }
+.hint.small { font-size: 0.85rem; margin-top: 12px; }
+
+.explanation {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--out);
+  background: color-mix(in srgb, var(--out) 8%, transparent);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+}
+
+.panel details { margin-top: 10px; }
+
+.panel summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.count {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.chord-list { display: grid; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+
+.chord {
+  display: grid;
+  grid-template-columns: minmax(4.5em, auto) minmax(4em, auto) 1fr;
+  grid-template-areas: "symbol roman tones" "meta meta meta";
+  align-items: baseline;
+  gap: 4px 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chord:hover { border-color: var(--chord); }
+.chord:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chord[aria-pressed="true"] {
+  border-color: var(--chord);
+  background: color-mix(in srgb, var(--chord) 12%, var(--surface));
+}
+
+.chord-symbol { grid-area: symbol; font-weight: 700; font-size: 1.05rem; }
+.chord-roman { grid-area: roman; font-family: Georgia, "Times New Roman", serif; color: var(--muted); }
+.chord-tones { grid-area: tones; color: var(--muted); font-size: 0.9rem; text-align: right; }
+.chord-meta { grid-area: meta; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.role-tag { color: var(--chord); background: color-mix(in srgb, var(--chord) 12%, transparent); }
+.fits-tag { color: var(--scale); background: color-mix(in srgb, var(--scale) 12%, transparent); }
+.blue-tag { color: var(--blue-note); background: color-mix(in srgb, var(--blue-note) 14%, transparent); }
