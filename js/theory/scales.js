@@ -29,9 +29,16 @@ const accidentalCount = (notes) => notes.reduce((sum, note) => sum + Math.abs(no
 
 /**
  * Pick the tonic spelling whose parent scale has the fewest accidentals and no
- * double accidentals. Ties go to sharps (F# major, D# minor).
+ * double accidentals. Ties go to sharps (F# major, D# minor). A `preferred`
+ * letter wins whenever it gives such a scale, so Eb major switched to minor
+ * stays Eb minor.
  */
-function chooseTonic(rootPc, parent) {
+function chooseTonic(rootPc, parent, preferred) {
+  if (preferred) {
+    const tonic = spellPcWithLetter(rootPc, preferred);
+    const notes = spellParentScale(tonic, parent);
+    if (notes.every((note) => Math.abs(note.acc) <= 1)) return { tonic, notes };
+  }
   let best = null;
   for (const letter of LETTERS) {
     const tonic = spellPcWithLetter(rootPc, letter);
@@ -47,9 +54,10 @@ function chooseTonic(rootPc, parent) {
   return best;
 }
 
-export function buildKey(rootPc, scaleId) {
+/** The key on `rootPc`. `tonicLetter` keeps an existing spelling of the tonic when it still works. */
+export function buildKey(rootPc, scaleId, tonicLetter = null) {
   const scale = SCALES[scaleId];
-  const { tonic, notes: parentNotes } = chooseTonic(mod12(rootPc), scale.parent);
+  const { tonic, notes: parentNotes } = chooseTonic(mod12(rootPc), scale.parent, tonicLetter);
 
   const scaleNotes = scale.degrees.map((i) => parentNotes[i]);
   let blueNote = null;

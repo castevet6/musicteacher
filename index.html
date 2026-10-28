@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Music Teacher</title>
-  <meta name="description" content="Learn scales and chords on guitar and piano.">
+  <meta name="description" content="Learn scales, chords and chord progressions on guitar and piano.">
   <link rel="stylesheet" href="css/styles.css">
   <script type="module" src="js/main.js"></script>
 </head>
@@ -16,14 +16,24 @@
 
   <main class="layout">
     <section class="instrument" aria-label="Instrument">
+      <div id="progression" class="strip" hidden></div>
       <div id="guitar"></div>
       <div id="piano" hidden></div>
-      <ul class="legend" aria-label="Legend">
+      <ul class="legend" id="legend-explore" aria-label="Legend">
         <li><span class="swatch swatch-root"></span>Root</li>
         <li><span class="swatch swatch-scale"></span>Scale note</li>
         <li><span class="swatch swatch-blue"></span>Blue note</li>
         <li><span class="swatch swatch-out"></span>Out of scale</li>
         <li><span class="swatch swatch-chord"></span>Chord tone (R 3 5 7)</li>
+      </ul>
+      <ul class="legend" id="legend-progression" aria-label="Legend" hidden>
+        <li><span class="swatch swatch-root"></span>Chord root</li>
+        <li><span class="swatch swatch-chord"></span>Chord tone</li>
+        <li><span class="swatch swatch-scale"></span>Scale tone (9 11 13)</li>
+        <li><span class="swatch swatch-parent"></span>Also fits</li>
+        <li><span class="swatch swatch-blue"></span>Blue note</li>
+        <li><span class="swatch swatch-avoid"></span>Avoid</li>
+        <li><span class="swatch swatch-guide"></span>Guide tone</li>
       </ul>
     </section>
 

@@ -1,33 +1,10 @@
-import { CHORD_QUALITIES } from '../theory/chords.js';
 import { prettyName } from '../theory/notes.js';
 import { isGapScale, keyLabel } from '../theory/scales.js';
+import { h, prettySymbol, prettyText } from './dom.js';
 
 const ROLE_NAMES = { R: 'root', 3: '3rd', 5: '5th', 7: '7th' };
 // Borrowed chords say where they come from; other groups' titles already do.
 const SOURCE_TAGGED = /parallel|harmonic/;
-
-/** Small DOM builder: h('span', { class: 'x' }, 'text', childEl). */
-function h(tag, props = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [name, value] of Object.entries(props)) {
-    if (name.startsWith('on')) el.addEventListener(name.slice(2), value);
-    else if (value !== false && value != null) el.setAttribute(name, value);
-  }
-  el.append(...children.flat().filter((c) => c != null && c !== false));
-  return el;
-}
-
-/** Accidental glyphs in note names (Bb), degrees (b6) and numerals (bVI, V/bVI). */
-export function prettyText(text) {
-  return text
-    .replace(/([A-G])b(?![a-z])/g, '$1♭')
-    .replace(/(^|[\s/(])b(?=[0-9IViv])/g, '$1♭')
-    .replace(/#/g, '♯');
-}
-
-export function prettySymbol(chord) {
-  return prettyName(chord.root) + CHORD_QUALITIES[chord.quality].symbol.replace('b5', '♭5');
-}
 
 export function createChordPanel(container, { onChordClick }) {
   const collapsed = new Set();

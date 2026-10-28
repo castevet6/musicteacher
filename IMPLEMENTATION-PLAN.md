@@ -34,15 +34,26 @@ js/theory/scales.js     SCALES table, buildKey()
 js/theory/chords.js     CHORD_QUALITIES, buildChord(), chordSymbol(), romanNumeral()
 js/theory/suggest.js    suggestChords()
 js/theory/explain.js    explanation texts for out-of-scale notes
+js/theory/progression.js  relative chords, parseNumeral(), PRESETS, bar/slot helpers (§9)
+js/theory/analysis.js   analyzeChord(), findCadences(), progressionAdvice(), nextChords(), slotFocus() (§9)
+js/theory/overChord.js  chordScale(), notesOverChord(), guideTones() (§9)
+js/theory/adviceText.js beginner / intermediate texts for the analysis (§9)
 js/ui/controls.js       instrument toggle, root and scale selects
 js/ui/piano.js          SVG keyboard
 js/ui/guitar.js         SVG fretboard
 js/ui/chordPanel.js     chord suggestion list
+js/ui/dom.js            h(), prettyText(), prettySymbol() shared by the panels
+js/ui/progressionStrip.js  bar strip, presets, transport controls
+js/ui/progressionPanel.js  chord picker, notes over the chord, advice
 js/audio/synth.js       Web Audio synth
+js/audio/transport.js   lookahead scheduler for progression playback
 test/notes.test.js
 test/scales.test.js
 test/chords.test.js
 test/suggest.test.js
+test/progression.test.js
+test/overChord.test.js
+test/analysis.test.js
 package.json
 README.md
 AGENTS.md
@@ -94,7 +105,7 @@ export const PARENT_INTERVALS = { major: [0,2,4,5,7,9,11], minor: [0,2,3,5,7,8,1
 }
 ```
 
-**Tonic spelling:** for each enharmonic candidate of `rootPc` (e.g. C# and Db), build the parent scale and count the accidentals. Choose the spelling with the fewest accidentals and no double accidentals. On a tie, sharps win. Results: Db major, F# major, C# minor, D# minor, Eb major, Bb minor, G# minor. `accidentals` is `'flats'` when the parent scale contains a flat, `'sharps'` when it contains a sharp, and `'neutral'` otherwise.
+**Tonic spelling:** when the scale changes, the state passes the current tonic letter as `tonicLetter`, and `buildKey` keeps it if its parent scale has no double accidentals (Eb major → Eb minor, not D# minor). A root change clears it. Otherwise, for each enharmonic candidate of `rootPc` (e.g. C# and Db), build the parent scale and count the accidentals. Choose the spelling with the fewest accidentals and no double accidentals. On a tie, sharps win. Results: Db major, F# major, C# minor, D# minor, Eb major, Bb minor, G# minor. `accidentals` is `'flats'` when the parent scale contains a flat, `'sharps'` when it contains a sharp, and `'neutral'` otherwise.
 
 Root picker labels: `C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B`.
 
@@ -196,6 +207,7 @@ These were checked by hand. Each line lists exactly the chords to expect.
 | C maj. pent. | F | `inScale` is false and `inParent` is true. The diatonic group is present, and its explanation mentions the parent scale. |
 | Sweep | — | For all 12 roots × 5 scales: no double accidentals in the parent scale or in any diatonic chord, and every scale uses 7 distinct letters |
 | Tie rule | — | Root pc 6 in major → F#. Root pc 3 in minor → D#. Root pc 1 in major → Db, in minor → C#. |
+| Kept tonic letter | — | `buildKey(rootPc, scaleId, tonicLetter)` keeps the letter when its parent scale has no double accidentals: (3, minor, 'E') → Eb minor. Otherwise the tie rule decides: (6, minor, 'G') → F#, (1, minor, 'D') → C#, (3, major, 'D') → Eb. |
 
 ## 4. State (`state.js`)
 
@@ -291,3 +303,56 @@ Labels show the key-correct spelling. A chromatic note uses `suggestions.note` w
 4. Click an in-scale note, a pentatonic gap note, a blue note and a chromatic note, and compare the results with §3.6.
 5. Click chords: check the tones and role labels, the audio, and that clicking again clears the chord.
 6. In the browser devtools, set the width to 375 px and re-check steps 3–5 by tapping.
+
+## 9. Progression mode
+
+A header toggle switches between **Explore** (§1–§8) and **Progression**. Key, scale and instrument are shared.
+
+### 9.1 Model (`progression.js`)
+
+- A progression chord is stored relative to the tonic: `RelChord = { steps, semis, quality }` (letter steps and semitones above the tonic). `resolveChord(key, rel)` spells the root as `spellPcWithLetter(rootPc + semis, letterAt(tonic.letter, steps))`, so a new root transposes the progression. A new scale keeps the chords where they are and re-analyses them (C–G–Am–F in C minor reads I V #vi IV). The tonic letter is kept across the change, so Fm7–Bb7–Ebmaj7 in Eb major keeps that spelling in Eb minor instead of becoming E#m7–A#7–D#maj7.
+- `progression = { bars: [{ chords: [RelChord|null] }] }`, 1–16 bars of 4/4, each bar 1 chord or 2 halves. `flattenSlots()` gives `{ index, bar, half, beats, rel, chord }`. Slots are addressed by `{ bar, half }`.
+- `parseNumeral(text, mode)` is the inverse of `romanNumeral()`. `PRESETS` are written as numerals in their own mode, so a minor preset in a major key comes out as borrowed chords.
+
+### 9.2 Analysis (`analysis.js`)
+
+- `analyzeChord` matches by symbol in the order diatonic → secondary dominant → borrowed → chromatic. A tonic-rooted dom7 (blues I7) stays `I7`, tonic function, `alsoActsAs: 'V7/IV'`.
+- Function by unaltered degree. Major: I iii vi tonic, ii IV subdominant, V vii° dominant. Minor: i III tonic, ii° iv VI subdominant, v V VII vii° dominant. Altered roots: bIII T, bII and bVI S, bVII D in major. #vii° D in minor. Secondary dominants are D with a `target`.
+- Cadences: authentic (V/V7 → tonic-rooted), plagal (degree 4 → tonic-rooted), deceptive (V → vi / VI), half (V ending a 4-bar phrase or the progression, no tonic after it), ii–V–I. With loop on, the last → first pair is checked and marked `wrap`.
+- Advice items: `starts-away-from-tonic`, `secondary-resolves`, `secondary-unresolved`, `ends-on-tonic`, `ends-on-dominant` (a turnaround when looping into a tonic bar 1), `ends-on-subdominant`, `ends-on-other`, `empty-bars`. `adviceText.js` words them at two levels.
+- `nextChords`: a secondary dominant's target first, then a per-degree table. A 7th chord gets 7th chords.
+
+### 9.3 Notes over a chord (`overChord.js`)
+
+- Chord scale: the key's parent scale (or, for a borrowed chord, its source scale, with harmonic minor taking precedence), with every letter the chord uses replaced by the chord tone. D7 in C → D Mixolydian, E7 in A minor → Phrygian dominant.
+- Tiers per pc: `chord` (R/3/5/7), `blue`, `avoid` (a chord-scale note a half step above a chord tone, except b9/b13 over a dom7; or a selected-scale note the chord alters), `scale`, `parent` (in the parent but not the pentatonic/blues scale), `outside`. Labels come from letter distance: 9, 11, 13, 7 with b/#.
+- Guide tones: the 3rd and 7th of a chord each move to the nearest tone of the next chord within a whole step. A common tone wins, ties move down.
+
+### 9.4 Golden cases
+
+| Case | Expected |
+|---|---|
+| I–V–vi–IV in G / Eb major | G D Em C / Eb Bb Cm Ab |
+| C–G–Am–F in C minor | I V #vi IV |
+| Andalusian in A minor / C major | Am G F E (i VII VI V) / Cm Bb Ab G |
+| Over C in C major | chord C E G · scale D(9) A(13) B(7) · avoid F(11) |
+| Over G7 in C | scale A(9) E(13) · avoid C(11) |
+| Over Dm7 in C | scale E(9) G(11) B(13), no avoid |
+| Over Em7 in C | scale A(11) · avoid F(b9) C(b13) |
+| Over D7 in C | scale E(9) B(13) · avoid F(b3, clashes with F#) G(11) |
+| Over E7 in A minor | scale F(b9) C(b13) · avoid G(b3, clashes with G#) A(11) |
+| Over A7 in C | scale B(9) F(b13) · avoid C(b3) D(11) |
+| Over Am in A minor pentatonic | scale D(11) G(b7) · parent B(9) · avoid F(b13) |
+| Over Am in A blues | blue Eb(b5) |
+| Guide tones | G7→C: B→C +1, F→E −1. Dm7→G7: F held, C→B −1. G7→Cmaj7: B held, F→E. E7→D7: G#→A, D held |
+| C G Am F | deceptive G→Am. With loop: plagal F→C (wrap). Ends on subdominant |
+| Dm7 G7 Cmaj7 | ii–V–I and authentic G7→Cmaj7 |
+| 12-bar blues in A | A7 = I7 (tonic, also V7/IV), D7 = IV7, E7 = V7. Plagal D7→A7 in bars 6→7 and 10→11. Bar 12: half cadence, or with loop an authentic wrap and a turnaround |
+| C, D7, Em | D7 (V7/V) unresolved |
+| nextChords in C | G7 → Cmaj7, Am7. G → C, Am. D7 → G7 first. Ab → Bb, G |
+
+### 9.5 State and playback
+
+- New state: `mode`, `level`, `progression`, `selectedSlot`, `playback { playing, bpm, loop, click, playhead }`. Derived: `slots`, `analysis`, and `focus` (the playhead slot while playing, otherwise the selected slot) from `slotFocus()`.
+- `transport.js` schedules on `AudioContext` time with a 25 ms timer and 100 ms lookahead. It reads fresh state for each slot, plays the chord on its downbeat (strummed on guitar) and an optional click on every beat, and moves the playhead with a `setTimeout` aligned to the audio clock.
+

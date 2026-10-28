@@ -22,6 +22,16 @@ test('tonic spelling uses fewest accidentals, ties go to sharps', () => {
   assert.equal(noteName(buildKey(8, 'naturalMinor').tonic), 'G#');
 });
 
+test('a preferred tonic letter is kept when its scale has no double accidentals', () => {
+  assert.equal(noteName(buildKey(3, 'naturalMinor', 'E').tonic), 'Eb');
+  assert.deepEqual(buildKey(3, 'naturalMinor', 'E').parentNotes.map(noteName), ['Eb', 'F', 'Gb', 'Ab', 'Bb', 'Cb', 'Db']);
+  // Gb minor needs Bbb, Db minor needs Bbb, D# major needs F##: the tie rule decides.
+  assert.equal(noteName(buildKey(6, 'naturalMinor', 'G').tonic), 'F#');
+  assert.equal(noteName(buildKey(1, 'naturalMinor', 'D').tonic), 'C#');
+  assert.equal(noteName(buildKey(3, 'major', 'D').tonic), 'Eb');
+  assert.equal(noteName(buildKey(3, 'major', 'E').tonic), 'Eb');
+});
+
 test('pentatonic and blues scales use the parent spelling', () => {
   assert.equal(names(buildKey(0, 'majorPentatonic').scaleNotes), 'C D E G A');
   assert.equal(names(buildKey(9, 'minorPentatonic').scaleNotes), 'A C D E G');

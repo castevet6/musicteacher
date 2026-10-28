@@ -6,7 +6,7 @@ let ctx = null;
 let master = null;
 
 // Created inside the first click so browsers allow audio.
-function context() {
+export function context() {
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
@@ -49,8 +49,26 @@ export function playNote(midi) {
   voice(midi, c.currentTime, 1);
 }
 
-export function playChord(chord, { strum = false } = {}) {
+/** Play `chord` now, or at audio time `when` for scheduled playback. */
+export function playChord(chord, { strum = false, when } = {}) {
   const c = context();
+  const start = when ?? c.currentTime;
   const midis = closeVoicing(chord);
-  midis.forEach((midi, i) => voice(midi, c.currentTime + (strum ? i * STRUM_DELAY : 0), 0.7));
+  midis.forEach((midi, i) => voice(midi, start + (strum ? i * STRUM_DELAY : 0), 0.7));
+}
+
+/** A short metronome blip at audio time `when`, higher on the downbeat. */
+export function playClick(when, accent = false) {
+  const c = context();
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, when);
+  env.gain.linearRampToValueAtTime(accent ? 0.5 : 0.3, when + 0.002);
+  env.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+  env.connect(master);
+  const osc = c.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = accent ? 1760 : 1320;
+  osc.connect(env);
+  osc.start(when);
+  osc.stop(when + 0.06);
 }

@@ -14,7 +14,49 @@ export function displayName(state, pc) {
   return prettyName(defaultSpelling(pc, key.accidentals));
 }
 
+// Progression mode: classes for each tier from notesOverChord().
+const TIER_CLASSES = { chord: 'chord-tone', scale: 'tension', parent: 'parent-tone', avoid: 'avoid', blue: 'blue-note' };
+
+/** Progression mode with a chord in focus: every note gets its tier over the chord. */
+function applyChordTiers(positions, state) {
+  const { selected, focus } = state;
+  const guide = new Set(focus.guideTones.map((m) => pcOf(m.from)));
+  for (const el of positions) {
+    const pc = Number(el.dataset.pc);
+    const midi = Number(el.dataset.midi);
+    const info = focus.notes[pc];
+    const isSelectedPc = selected?.pc === pc;
+    const cl = el.classList;
+
+    cl.remove('in-scale', 'blue-note', 'out-of-scale', 'tension', 'parent-tone', 'avoid');
+    cl.toggle('root', info.tier === 'chord' && info.label === 'R');
+    if (TIER_CLASSES[info.tier]) cl.add(TIER_CLASSES[info.tier]);
+    cl.toggle('chord-tone', info.tier === 'chord');
+    cl.toggle('shown', info.tier !== 'outside');
+    cl.toggle('guide-tone', guide.has(pc));
+    cl.toggle('muted', info.tier === 'outside');
+    cl.toggle('selected', isSelectedPc && selected.midi === midi);
+    cl.toggle('selected-pc', isSelectedPc && selected.midi !== midi);
+    el.dataset.tier = info.tier;
+
+    const name = prettyName(info.note);
+    el.querySelector('.label').textContent = name;
+    el.querySelector('.role').textContent = prettyLabel(info.label);
+    el.setAttribute('aria-label', info.label ? `${name}, ${info.label}` : name);
+  }
+}
+
+const prettyLabel = (label) => label.replace(/b(?=\d)/g, '♭').replace(/#/g, '♯');
+
 export function applyHighlights(positions, state) {
+  if (state.mode === 'progression' && state.focus?.chord) {
+    applyChordTiers(positions, state);
+    return;
+  }
+  for (const el of positions) {
+    el.classList.remove('tension', 'parent-tone', 'avoid', 'shown', 'guide-tone');
+    delete el.dataset.tier;
+  }
   const { key, selected, activeChord } = state;
   const roles = new Map(activeChord?.tones.map((t) => [pcOf(t.note), t.role]) ?? []);
   const names = Array.from({ length: 12 }, (_, pc) => displayName(state, pc));

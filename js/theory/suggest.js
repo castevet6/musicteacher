@@ -54,8 +54,8 @@ export function secondaryDominants(key) {
       const targetRoot = target.chord.root;
       const root = spellPcWithLetter(mod12(pcOf(targetRoot) + 7), letterAt(targetRoot.letter, 4));
       return [
-        { chord: buildChord(root, 'maj'), roman: `V/${target.roman}` },
-        { chord: buildChord(root, 'dom7'), roman: `V7/${target.roman}` },
+        { chord: buildChord(root, 'maj'), roman: `V/${target.roman}`, target: target.chord },
+        { chord: buildChord(root, 'dom7'), roman: `V7/${target.roman}`, target: target.chord },
       ];
     });
 }
