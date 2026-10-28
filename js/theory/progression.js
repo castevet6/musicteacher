@@ -5,6 +5,7 @@
 import { buildChord } from './chords.js';
 import { LETTERS, letterAt, mod, mod12, pcOf, spellPcWithLetter } from './notes.js';
 import { PARENT_INTERVALS } from './scales.js';
+import { textFor } from './text/index.js';
 
 export const MAX_BARS = 16;
 
@@ -48,18 +49,19 @@ export function parseNumeral(text, mode) {
 // A bar is one numeral, or two for a bar split into halves. Each preset is
 // read in its own mode, so a minor preset in a major key comes out borrowed.
 export const PRESETS = {
-  pop: { label: 'I–V–vi–IV', mode: 'major', bars: ['I', 'V', 'vi', 'IV'] },
-  doowop: { label: 'I–vi–IV–V', mode: 'major', bars: ['I', 'vi', 'IV', 'V'] },
-  twoFiveOne: { label: 'ii–V–I', mode: 'major', bars: ['ii7', 'V7', 'Imaj7', 'Imaj7'] },
-  turnaround: { label: 'I–vi–ii–V turnaround', mode: 'major', bars: [['Imaj7', 'vi7'], ['ii7', 'V7']] },
+  pop: { mode: 'major', bars: ['I', 'V', 'vi', 'IV'] },
+  doowop: { mode: 'major', bars: ['I', 'vi', 'IV', 'V'] },
+  twoFiveOne: { mode: 'major', bars: ['ii7', 'V7', 'Imaj7', 'Imaj7'] },
+  turnaround: { mode: 'major', bars: [['Imaj7', 'vi7'], ['ii7', 'V7']] },
   blues: {
-    label: '12-bar blues',
     mode: 'major',
     bars: ['I7', 'I7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
   },
-  andalusian: { label: 'i–VII–VI–V (Andalusian)', mode: 'minor', bars: ['i', 'VII', 'VI', 'V'] },
-  minorPop: { label: 'i–VI–III–VII', mode: 'minor', bars: ['i', 'VI', 'III', 'VII'] },
+  andalusian: { mode: 'minor', bars: ['i', 'VII', 'VI', 'V'] },
+  minorPop: { mode: 'minor', bars: ['i', 'VI', 'III', 'VII'] },
 };
+
+export const presetLabel = (id, lang) => textFor(lang).presetLabels[id];
 
 export function presetProgression(id) {
   const { mode, bars } = PRESETS[id];

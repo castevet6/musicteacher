@@ -1,7 +1,6 @@
 // Small DOM helpers shared by the panels.
 
-import { CHORD_QUALITIES } from '../theory/chords.js';
-import { prettyName } from '../theory/notes.js';
+import { chordLabel } from '../theory/chords.js';
 
 /** Small DOM builder: h('span', { class: 'x' }, 'text', childEl). */
 export function h(tag, props = {}, ...children) {
@@ -22,6 +21,4 @@ export function prettyText(text) {
     .replace(/#/g, '♯');
 }
 
-export function prettySymbol(chord) {
-  return prettyName(chord.root) + CHORD_QUALITIES[chord.quality].symbol.replace('b5', '♭5');
-}
+export const prettySymbol = chordLabel;

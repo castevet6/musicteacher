@@ -1,4 +1,4 @@
-import { LETTERS, letterAt, mod, mod12, noteName, pcOf, spellPcWithLetter } from './notes.js';
+import { LETTERS, letterAt, mod, mod12, noteName, pcOf, prettyName, spellPcWithLetter } from './notes.js';
 
 export const CHORD_QUALITIES = {
   maj: { symbol: '', intervals: [0, 4, 7] },
@@ -47,6 +47,10 @@ export function qualityOf(notes) {
 export function chordFromNotes(notes) {
   return buildChord(notes[0], qualityOf(notes));
 }
+
+/** Chord symbol for display, with accidental glyphs: "B♭7", or "B7" in Finnish. */
+export const chordLabel = (chord, lang = 'en') =>
+  prettyName(chord.root, lang) + CHORD_QUALITIES[chord.quality].symbol.replace('b5', '♭5');
 
 export const containsPc = (chord, pc) => chord.pcs.includes(pc);
 

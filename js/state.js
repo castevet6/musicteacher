@@ -5,6 +5,7 @@ import {
 } from './theory/progression.js';
 import { buildKey } from './theory/scales.js';
 import { suggestChords } from './theory/suggest.js';
+import { DEFAULT_LANG } from './theory/text/index.js';
 
 const listeners = new Set();
 
@@ -12,6 +13,7 @@ let state = derive({
   mode: 'explore', // 'explore' | 'progression'
   level: 'intermediate', // 'beginner' | 'intermediate'
   instrument: 'guitar',
+  lang: DEFAULT_LANG,
   rootPc: 0,
   scaleId: 'major',
   tonicLetter: null, // kept across scale changes, so Eb major → minor stays Eb
@@ -24,7 +26,7 @@ let state = derive({
 
 function derive(next) {
   const key = buildKey(next.rootPc, next.scaleId, next.tonicLetter);
-  const suggestions = next.mode === 'explore' && next.selected ? suggestChords(key, next.selected.pc) : null;
+  const suggestions = next.mode === 'explore' && next.selected ? suggestChords(key, next.selected.pc, next.lang) : null;
   const slots = flattenSlots(key, next.progression);
   const { loop } = next.playback;
   const analysis = analyzeProgression(key, slots, { loop });
@@ -56,6 +58,7 @@ export function setMode(mode) {
 }
 
 export const setLevel = (level) => update({ level });
+export const setLang = (lang) => update({ lang });
 
 export function setInstrument(instrument) {
   if (instrument === state.instrument) return;

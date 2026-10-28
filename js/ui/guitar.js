@@ -1,4 +1,5 @@
 import { applyHighlights, notePosition, onPositionClick, svgEl } from './highlight.js';
+import { ui } from './strings.js';
 
 const STRINGS = [64, 59, 55, 50, 45, 40]; // high e on top, as in tab
 const FRETS = 15;
@@ -89,6 +90,7 @@ export function createGuitar(container, { onNoteClick }) {
 
   function render(state) {
     lastState = state;
+    svg.setAttribute('aria-label', ui(state.lang).guitarAria);
     applyHighlights(svg.querySelectorAll('.pos'), state);
   }
 

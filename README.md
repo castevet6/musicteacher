@@ -19,6 +19,10 @@ Select a bar, or press **Play**, and the instrument shows what to play over that
 
 Chords are stored relative to the key, so changing the root transposes the progression. Changing the scale keeps the chords and re-analyses them.
 
+### Languages
+
+The page is available in English and Finnish. A toggle in the header switches between them, and the page starts in the browser's language (`?lang=fi` or `?lang=en` overrides it). The choice is not stored, so a reload goes back to the browser's language. In Finnish the notes follow the Finnish convention: B natural is **H** and B♭ is **B**, so B♭7 shows as B7.
+
 ## Run
 
 The page uses native ES modules, so serve it over HTTP. Opening `index.html` directly from disk will not work.

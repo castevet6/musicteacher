@@ -15,6 +15,10 @@ Plain HTML, CSS and native ES modules, loaded directly by the browser. The page 
 
 `js/theory/` is the pure core: functions of plain data, importable by Node, with no `document`, `window` or `AudioContext`. `js/ui/` and `js/audio/` call into theory, and theory imports only from `js/theory/`. Every change to state goes through the actions in `js/state.js`, and views re-render from the full state they are given. When a UI feature needs a music fact, add it to `js/theory/` with a test, then read it from the UI.
 
+## Languages
+
+The page is English and Finnish (`state.lang`, `'en' | 'fi'`). Words the theory produces live in `js/theory/text/en.js` and `fi.js`, which must have the same shape (a test checks it); `adviceText.js` and `text/index.js` are the entry points, and every text function takes `lang` last. Interface text lives in `js/ui/strings.js`. Static text in `index.html` is marked `data-i18n`. A new user-visible string needs both languages. Chord and note names for display go through `prettyName(note, lang)` and `chordLabel(chord, lang)`, never `noteName` (ASCII, for data and tests), because Finnish writes B natural as H and B♭ as B.
+
 ## Music-theory conventions
 
 - Pitch class `pc` is an integer from 0 to 11, with C = 0. Instrument positions and audio use MIDI numbers (A4 = 69).

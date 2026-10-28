@@ -7,11 +7,11 @@ import { defaultSpelling, pcOf, prettyName } from '../theory/notes.js';
 export function displayName(state, pc) {
   const { key, activeChord, suggestions } = state;
   const tone = activeChord?.tones.find((t) => pcOf(t.note) === pc);
-  if (tone) return prettyName(tone.note);
+  if (tone) return prettyName(tone.note, state.lang);
   const scaleNote = key.scaleNotes.find((note) => pcOf(note) === pc);
-  if (scaleNote) return prettyName(scaleNote);
-  if (suggestions?.pc === pc) return prettyName(suggestions.note);
-  return prettyName(defaultSpelling(pc, key.accidentals));
+  if (scaleNote) return prettyName(scaleNote, state.lang);
+  if (suggestions?.pc === pc) return prettyName(suggestions.note, state.lang);
+  return prettyName(defaultSpelling(pc, key.accidentals), state.lang);
 }
 
 // Progression mode: classes for each tier from notesOverChord().
@@ -39,7 +39,7 @@ function applyChordTiers(positions, state) {
     cl.toggle('selected-pc', isSelectedPc && selected.midi !== midi);
     el.dataset.tier = info.tier;
 
-    const name = prettyName(info.note);
+    const name = prettyName(info.note, state.lang);
     el.querySelector('.label').textContent = name;
     el.querySelector('.role').textContent = prettyLabel(info.label);
     el.setAttribute('aria-label', info.label ? `${name}, ${info.label}` : name);

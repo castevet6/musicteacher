@@ -1,4 +1,5 @@
 import { applyHighlights, notePosition, onPositionClick, svgEl } from './highlight.js';
+import { ui } from './strings.js';
 
 const FIRST_MIDI = 36; // C2
 const LAST_MIDI = 83; // B5
@@ -73,6 +74,7 @@ export function createPiano(container, { onNoteClick }) {
 
   function render(state) {
     lastState = state;
+    svg.setAttribute('aria-label', ui(state.lang).pianoAria);
     applyHighlights(svg.querySelectorAll('.pos'), state);
   }
 

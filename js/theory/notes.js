@@ -32,9 +32,17 @@ export function noteName({ letter, acc }) {
   return letter + (acc > 0 ? '#'.repeat(acc) : 'b'.repeat(-acc));
 }
 
-/** Display name with real accidental glyphs: "B♭", "F♯", "F𝄪". */
-export function prettyName({ letter, acc }) {
+/**
+ * Display name with real accidental glyphs: "B♭", "F♯", "F𝄪". In Finnish the
+ * natural B is H and B♭ is B, so "B♭" shows as "B" and "B𝄫" as "B♭".
+ */
+export function prettyName({ letter, acc }, lang = 'en') {
   const glyphs = { '-2': '𝄫', '-1': '♭', 0: '', 1: '♯', 2: '𝄪' };
+  if (lang === 'fi' && letter === 'B') {
+    if (acc === -1) return 'B';
+    if (acc === -2) return 'B♭';
+    return 'H' + glyphs[acc];
+  }
   return letter + (glyphs[acc] ?? noteName({ letter: '', acc }));
 }
 

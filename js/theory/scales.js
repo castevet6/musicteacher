@@ -1,4 +1,5 @@
-import { LETTERS, letterAt, mod12, noteName, pcOf, spellPcWithLetter } from './notes.js';
+import { LETTERS, letterAt, mod12, pcOf, prettyName, spellPcWithLetter } from './notes.js';
+import { textFor } from './text/index.js';
 
 export const PARENT_INTERVALS = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -8,14 +9,30 @@ export const PARENT_INTERVALS = {
 // `degrees` index into the 7 notes of the parent scale, so every scale inherits
 // the parent's spelling. `blueNote` adds the lowered 5th of the parent.
 export const SCALES = {
-  major: { label: 'Major', parent: 'major', degrees: [0, 1, 2, 3, 4, 5, 6] },
-  naturalMinor: { label: 'Natural minor', parent: 'minor', degrees: [0, 1, 2, 3, 4, 5, 6] },
-  majorPentatonic: { label: 'Major pentatonic', parent: 'major', degrees: [0, 1, 2, 4, 5] },
-  minorPentatonic: { label: 'Minor pentatonic', parent: 'minor', degrees: [0, 2, 3, 4, 6] },
-  blues: { label: 'Blues', parent: 'minor', degrees: [0, 2, 3, 4, 6], blueNote: true },
+  major: { parent: 'major', degrees: [0, 1, 2, 3, 4, 5, 6] },
+  naturalMinor: { parent: 'minor', degrees: [0, 1, 2, 3, 4, 5, 6] },
+  majorPentatonic: { parent: 'major', degrees: [0, 1, 2, 4, 5] },
+  minorPentatonic: { parent: 'minor', degrees: [0, 2, 3, 4, 6] },
+  blues: { parent: 'minor', degrees: [0, 2, 3, 4, 6], blueNote: true },
 };
 
-export const ROOT_LABELS = ['C', 'C#/Db', 'D', 'D#/Eb', 'E', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A', 'A#/Bb', 'B'];
+const ROOT_NOTES = [
+  [{ letter: 'C', acc: 0 }],
+  [{ letter: 'C', acc: 1 }, { letter: 'D', acc: -1 }],
+  [{ letter: 'D', acc: 0 }],
+  [{ letter: 'D', acc: 1 }, { letter: 'E', acc: -1 }],
+  [{ letter: 'E', acc: 0 }],
+  [{ letter: 'F', acc: 0 }],
+  [{ letter: 'F', acc: 1 }, { letter: 'G', acc: -1 }],
+  [{ letter: 'G', acc: 0 }],
+  [{ letter: 'G', acc: 1 }, { letter: 'A', acc: -1 }],
+  [{ letter: 'A', acc: 0 }],
+  [{ letter: 'A', acc: 1 }, { letter: 'B', acc: -1 }],
+  [{ letter: 'B', acc: 0 }],
+];
+
+/** Choice in the root menu: "C♯/D♭" (Finnish "C♯/D"; B is H). */
+export const rootLabel = (pc, lang) => ROOT_NOTES[pc].map((note) => prettyName(note, lang)).join('/');
 
 /** The 7 notes of a major or natural minor scale, one letter per degree. */
 export function spellParentScale(tonic, parent) {
@@ -86,8 +103,22 @@ export function buildKey(rootPc, scaleId, tonicLetter = null) {
   };
 }
 
-export function keyLabel(key) {
-  return `${noteName(key.tonic)} ${SCALES[key.scaleId].label.toLowerCase()}`;
+/** Name of a scale, from the language's text bundle. */
+export const scaleLabel = (scaleId, lang) => textFor(lang).scaleLabels[scaleId];
+
+/** "C major" (Finnish "C-duuri"), with display glyphs in the note name. */
+export function keyLabel(key, lang) {
+  return textFor(lang).keyLabel(prettyName(key.tonic, lang), key.scaleId);
+}
+
+/** The key as a phrase for "in": "in C major" ("C-duurissa"). */
+export function keyIn(key, lang) {
+  return textFor(lang).keyIn(prettyName(key.tonic, lang), key.scaleId);
+}
+
+/** Heading for a clicked note: "In C major" or "Not in C major". */
+export function noteStatus(inScale, key, lang) {
+  return textFor(lang).noteStatus(inScale, prettyName(key.tonic, lang), key.scaleId);
 }
 
 export function isGapScale(key) {

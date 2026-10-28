@@ -1,9 +1,11 @@
 import { playChord, playNote } from './audio/synth.js';
 import { createTransport } from './audio/transport.js';
 import * as store from './state.js';
+import { LANGS } from './theory/text/index.js';
 import { createChordPanel } from './ui/chordPanel.js';
 import { createControls } from './ui/controls.js';
 import { createGuitar } from './ui/guitar.js';
+import { detectLang, translatePage } from './ui/pageText.js';
 import { createPiano } from './ui/piano.js';
 import { createProgressionPanel } from './ui/progressionPanel.js';
 import { createProgressionStrip } from './ui/progressionStrip.js';
@@ -67,6 +69,7 @@ const controls = createControls(document.querySelector('#controls'), {
   onRoot: store.setRoot,
   onScale: store.setScale,
   onLevel: store.setLevel,
+  onLang: store.setLang,
 });
 const instruments = {
   guitar: createGuitar(document.querySelector('#guitar'), { onNoteClick }),
@@ -93,7 +96,14 @@ const legends = {
   progression: document.querySelector('#legend-progression'),
 };
 
+let pageLang = null;
+
+store.setLang(detectLang(LANGS));
 store.subscribe((state) => {
+  if (state.lang !== pageLang) {
+    translatePage(state.lang);
+    pageLang = state.lang;
+  }
   const progression = state.mode === 'progression';
   controls.render(state);
   strip.show(progression);

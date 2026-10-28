@@ -1,14 +1,8 @@
 import { buildChord, chordsOfScale, containsPc, diatonicChords, roleOf, romanNumeral } from './chords.js';
 import { explain } from './explain.js';
 import { defaultSpelling, letterAt, mod12, pcOf, spellPcWithLetter } from './notes.js';
-import { SCALES, spellParentScale } from './scales.js';
-
-const GROUP_TITLES = {
-  diatonic: 'Diatonic chords',
-  borrowed: 'Borrowed chords',
-  secondary: 'Secondary dominants',
-  chromatic: 'Chromatic chords',
-};
+import { spellParentScale } from './scales.js';
+import { textFor } from './text/index.js';
 
 function toSuggestion(chord, roman, source, key, pc) {
   return {
@@ -84,14 +78,14 @@ function spellingInChords(chords, pc) {
 }
 
 /** Chords that suit the note `pc` in `key`, grouped by where they come from. */
-export function suggestChords(key, pc) {
+export function suggestChords(key, pc, lang) {
   pc = mod12(pc);
   const inScale = key.scalePcs.has(pc);
   const inParent = key.parentPcs.has(pc);
   const isBlueNote = pc === key.blueNotePc;
   const groups = [];
   const addGroup = (id, chords) => {
-    if (chords.length) groups.push({ id, title: GROUP_TITLES[id], chords });
+    if (chords.length) groups.push({ id, title: textFor(lang).groupTitles[id], chords });
   };
 
   const scaleNote = key.scaleNotes.find((note) => pcOf(note) === pc);
@@ -115,8 +109,7 @@ export function suggestChords(key, pc) {
     addGroup('secondary', secondary.map(toSecondary));
     note = scaleNote ?? key.parentNotes.find((n) => pcOf(n) === pc);
     if (!inScale) {
-      const scaleName = SCALES[key.scaleId].label.toLowerCase();
-      explanation = `Not in the ${scaleName}, but it belongs to the parent ${key.parent} scale, so these chords still fit.`;
+      explanation = textFor(lang).notInScale(key.scaleId, key.parent);
     }
   } else {
     const borrowed = mergeBySymbol(borrowedChords(key)).filter(fitsNote);
@@ -130,7 +123,7 @@ export function suggestChords(key, pc) {
     if (!groups.length) {
       addGroup('chromatic', chromaticChords(note).map((c) => toSuggestion(c, romanNumeral(c, key), 'chromatic', key, pc)));
     }
-    explanation = explain(key, pc, { isBlueNote, note });
+    explanation = explain(key, pc, { isBlueNote, note, lang });
   }
 
   return { pc, note, inScale, inParent, isBlueNote, groups, explanation };

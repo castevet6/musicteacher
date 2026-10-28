@@ -239,9 +239,9 @@ export function chordPalette(key) {
   const seen = new Set(diatonic.map((e) => e.chord.symbol));
   const fresh = (entries) => entries.filter((e) => !seen.has(e.chord.symbol) && seen.add(e.chord.symbol));
   return [
-    { id: 'diatonic', title: 'Diatonic', chords: diatonic.map((e) => ({ chord: e.chord, roman: e.roman })) },
-    { id: 'borrowed', title: 'Borrowed', chords: fresh(borrowedChords(key)).map((e) => ({ chord: e.chord, roman: romanNumeral(e.chord, key) })) },
-    { id: 'secondary', title: 'Secondary', chords: fresh(secondaryDominants(key)).map((e) => ({ chord: e.chord, roman: e.roman })) },
+    { id: 'diatonic', chords: diatonic.map((e) => ({ chord: e.chord, roman: e.roman })) },
+    { id: 'borrowed', chords: fresh(borrowedChords(key)).map((e) => ({ chord: e.chord, roman: romanNumeral(e.chord, key) })) },
+    { id: 'secondary', chords: fresh(secondaryDominants(key)).map((e) => ({ chord: e.chord, roman: e.roman })) },
   ];
 }
 
