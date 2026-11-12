@@ -613,6 +613,9 @@ body {
 .rank-pick .pick-symbol { display: inline-flex; align-items: center; gap: 5px; }
 .rank-pick .fit-dot { position: static; flex: none; }
 .rank-pick[data-fit="clash"] { opacity: 0.7; }
+.key-guess .pick-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.key-guess .hint { margin-top: 8px; font-size: 0.85rem; }
+[data-act="suggest-key"][aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 
 /* ---------- Composer panel ---------- */
 

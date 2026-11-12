@@ -361,6 +361,17 @@ const RANK_REASONS = {
 };
 const rankReasonText = (reason, level) => (RANK_REASONS[reason] ? pick(level, RANK_REASONS[reason]) : reasonText(reason, level));
 
+// Sävellajiarvaus: miksi sävellajia ehdotetaan.
+function keyReasonText(reason, coverage, level) {
+  const percent = Math.round(coverage * 100);
+  return pick(level, {
+    'fits-all': { beginner: 'kaikki sävelet sopivat', intermediate: 'kaikki sävelet kuuluvat asteikkoon' },
+    'fits-most': { beginner: `${percent} % sävelistä sopii`, intermediate: `${percent} % sävelistä kuuluu asteikkoon` },
+    'ends-on-tonic': { beginner: 'päättyy kotisäveleen', intermediate: 'päättyy toonikaan' },
+    'chords-diatonic': { beginner: 'kaikki soinnut kuuluvat joukkoon', intermediate: 'kaikki soinnut ovat diatonisia' },
+  }[reason] ?? { intermediate: reason });
+}
+
 export const fi = {
   noteName: N,
   roleNames: ROLE_NAMES,
@@ -406,4 +417,5 @@ export const fi = {
   critiqueText,
   ghostReasonText,
   rankReasonText,
+  keyReasonText,
 };

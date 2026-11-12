@@ -111,6 +111,10 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
   onGrid: store.setGrid,
   onStyle: store.setStyle,
   onMute: store.toggleMute,
+  onSuggestKey: () => {
+    composerPanel.openTab('piece');
+    store.suggestKey();
+  },
   onSolo: store.toggleSolo,
 });
 const transposePrompt = createTransposePrompt(document.querySelector('#transpose-prompt'), {
@@ -136,6 +140,8 @@ const composerPanel = createComposerPanel(document.querySelector('#chords'), {
   onPickChord,
   onNextChord,
   onSelectNote: store.selectLaneNote,
+  onApplyKey: store.applyKey,
+  onDismissKeyGuess: store.dismissKeyGuess,
   onPlaceGhost: (ghost) => {
     const { ghosts, grid } = store.getState();
     store.addLaneNote('melody', { start: ghosts.tick, length: gridTicks(grid), midi: ghost.midi });

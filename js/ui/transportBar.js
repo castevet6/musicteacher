@@ -6,7 +6,9 @@ import { ui } from './strings.js';
 
 const MIX_LANES = ['chords', 'melody']; // the bass lane arrives with the bass roll
 
-export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onStyle, onMute, onSolo }) {
+export function createTransportBar(container, {
+  onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onStyle, onMute, onSolo, onSuggestKey,
+}) {
   container.innerHTML = `
     <div class="transport" role="group" data-label="aria-label:group">
       <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
@@ -20,6 +22,7 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
       <label class="field"><span data-label="style"></span>
         <select name="style">${STYLES.map((id) => `<option value="${id}" data-label="styles.${id}"></option>`).join('')}</select>
       </label>
+      <button type="button" class="btn" data-act="suggest-key" data-label="suggestKey"></button>
       <div class="mix" role="group" data-label="aria-label:mix">
         ${MIX_LANES.map((lane) => `
           <span class="mix-lane" data-lane="${lane}">
@@ -38,6 +41,7 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
   const click = $('[name=click]');
   const grid = $('[name=grid]');
   const style = $('[name=style]');
+  const suggestKey = $('[data-act=suggest-key]');
   const mixLanes = [...container.querySelectorAll('.mix-lane')];
   let renderedLang = null;
 
@@ -65,6 +69,7 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
   click.addEventListener('change', () => onClickTrack(click.checked));
   grid.addEventListener('change', () => onGrid(Number(grid.value)));
   style.addEventListener('change', () => onStyle(style.value));
+  suggestKey.addEventListener('click', onSuggestKey);
   for (const el of mixLanes) {
     el.querySelector('[data-mix=mute]').addEventListener('click', () => onMute(el.dataset.lane));
     el.querySelector('[data-mix=solo]').addEventListener('click', () => onSolo(el.dataset.lane));
@@ -80,6 +85,8 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
       play.textContent = playing ? text.stop : text.play;
       play.setAttribute('aria-pressed', String(playing));
       play.disabled = !playing && nothing;
+      suggestKey.disabled = nothing && state.bass.notes.length === 0;
+      suggestKey.setAttribute('aria-pressed', String(Boolean(state.keyGuess)));
       // Play always starts at bar 1; a selected bar offers its own start button.
       playFrom.hidden = playing || !from || from.bar === 0 || nothing;
       if (from) {

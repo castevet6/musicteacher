@@ -3,10 +3,10 @@ import {
   addNote, clampLane, defaultMix, emptyLane, removeNote, resizeNote, slotAtTick, toggleMix, transposeDistance, transposeLane,
 } from './theory/composition.js';
 import {
-  MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, resizeProgression,
+  MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, rekeyProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
-import { fitLevel, rankChords, slotFitScore } from './theory/harmonize.js';
+import { fitLevel, guessKeys, rankChords, slotFitScore } from './theory/harmonize.js';
 import { critiqueLane } from './theory/melodyCritique.js';
 import { cellTiers, laneFit } from './theory/melodyFit.js';
 import { suggestNextNotes } from './theory/nextNote.js';
@@ -40,6 +40,7 @@ let state = derive({
   showMap: true, // paint the fit map behind the roll
   mix: defaultMix(), // per lane: 'on' | 'mute' | 'solo'
   pendingTranspose: null, // { fromPc, semis }: the root moved while a lane had notes
+  keyGuess: null, // results of the last Suggest key, [{ rootPc, scaleId, score, coverage, reasons }], until applied or dismissed
   playback: { playing: false, bpm: 90, loop: true, click: true, ...STOPPED },
 });
 
@@ -123,6 +124,24 @@ export function confirmTranspose() {
 }
 
 export const dismissTranspose = () => update({ pendingTranspose: null });
+
+// ---------- Key guess ----------
+
+export const suggestKey = () => update({ keyGuess: guessKeys(state.melody, state.slots, state.bass) });
+export const dismissKeyGuess = () => update({ keyGuess: null });
+
+/**
+ * Use a suggested key: the notes stay where they are and the chords keep
+ * their sound; only the key, its spellings and the numerals change.
+ */
+export function applyKey(rootPc, scaleId) {
+  const to = buildKey(rootPc, scaleId);
+  update({
+    rootPc, scaleId, tonicLetter: null,
+    progression: rekeyProgression(state.key, to, state.progression),
+    keyGuess: null, pendingTranspose: null, selected: null, activeChord: null,
+  });
+}
 export function setScale(scaleId) {
   update({ scaleId, tonicLetter: state.key.tonic.letter, selected: null, activeChord: null });
 }

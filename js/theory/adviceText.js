@@ -18,3 +18,4 @@ export const critiqueName = (rule, level, lang) => textFor(lang).critiqueName(ru
 export const critiqueText = (item, level, lang) => textFor(lang).critiqueText(item, level);
 export const ghostReasonText = (reason, level, lang) => textFor(lang).ghostReasonText(reason, level);
 export const rankReasonText = (reason, level, lang) => textFor(lang).rankReasonText(reason, level);
+export const keyReasonText = (reason, coverage, level, lang) => textFor(lang).keyReasonText(reason, coverage, level);

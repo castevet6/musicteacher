@@ -5,8 +5,9 @@
 
 import {
   adviceText, avoidReasonText, cadenceText, critiqueName, critiqueText, functionText, ghostReasonText, guideToneText,
-  noteOverChordText, rankReasonText, reasonText, tierText,
+  keyReasonText, noteOverChordText, rankReasonText, reasonText, tierText,
 } from '../theory/adviceText.js';
+import { buildKey, keyLabel } from '../theory/scales.js';
 import { fitLevel } from '../theory/harmonize.js';
 import { noteFit, noteTier } from '../theory/melodyFit.js';
 import { chordPalette } from '../theory/analysis.js';
@@ -26,7 +27,7 @@ const QUALITY_LABELS = {
 
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
-export function createComposerPanel(container, { onPickChord, onNextChord, onSelectNote, onPlaceGhost }) {
+export function createComposerPanel(container, { onPickChord, onNextChord, onSelectNote, onPlaceGhost, onApplyKey, onDismissKeyGuess }) {
   // View-only UI state: which picker tab is shown and whether the picker is open.
   let activeTab = 'diatonic';
   let pickerOpen = false;
@@ -285,12 +286,44 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
         : h('p', { class: 'hint' }, text.allGood));
   }
 
+  /** The last Suggest key results; picking one changes the key without moving a note. */
+  function keyGuessSection(state) {
+    const { keyGuess, level, lang } = state;
+    const text = ui(lang).composer;
+    if (!keyGuess) return null;
+    return h('section', { class: 'key-guess' },
+      h('h3', {}, text.keyGuess),
+      keyGuess.length
+        ? [
+          h('div', { class: 'pick-grid' }, keyGuess.map((r) => {
+            const key = buildKey(r.rootPc, r.scaleId);
+            const current = r.rootPc === state.rootPc && r.scaleId === state.scaleId;
+            const label = keyLabel(key, lang);
+            return h('button', {
+              type: 'button',
+              class: 'pick key-pick',
+              'data-id': `key-${r.rootPc}-${r.scaleId}`,
+              'aria-pressed': String(current),
+              'aria-label': text.keyApply(label),
+              onclick: () => onApplyKey(r.rootPc, r.scaleId),
+            },
+            h('span', { class: 'pick-symbol' }, label),
+            h('span', { class: 'pick-roman' }, current ? text.keyCurrent : `${Math.round(r.coverage * 100)} %`),
+            h('span', { class: 'pick-reason' }, r.reasons.map((reason) => keyReasonText(reason, r.coverage, level, lang)).join(', ')));
+          })),
+          h('p', { class: 'hint' }, text.keyKept),
+        ]
+        : h('p', { class: 'hint' }, text.keyNone),
+      h('button', { type: 'button', class: 'btn subtle', 'data-id': 'key-dismiss', onclick: onDismissKeyGuess }, text.keyDismiss));
+  }
+
   function pieceTab(state) {
     const text = ui(state.lang).composer;
     const about = aboutSection(state);
     const remarks = remarksSection(state);
     return [
       h('h2', {}, text.pieceTitle),
+      keyGuessSection(state),
       remarks,
       about ?? (remarks ? null : h('p', { class: 'hint' }, text.hintPiece)),
     ];
@@ -315,5 +348,10 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
     if (focusedId) container.querySelector(`[data-id="${CSS.escape(focusedId)}"]`)?.focus();
   }
 
-  return { render };
+  /** Open a tab from outside, as Suggest key does for the Piece tab. */
+  function openTab(id) {
+    tab = id;
+  }
+
+  return { render, openTab };
 }

@@ -120,3 +120,10 @@ export function flattenSlots(key, progression) {
     })))
     .map((slot, index) => ({ ...slot, index }));
 }
+
+/** The same chords read in `to` instead of `from`: every chord keeps its sound and gets a new numeral. */
+export function rekeyProgression(from, to, progression) {
+  return {
+    bars: progression.bars.map((bar) => ({ chords: bar.chords.map((rel) => (rel ? toRelative(to, resolveChord(from, rel)) : null)) })),
+  };
+}

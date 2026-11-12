@@ -321,6 +321,17 @@ const RANK_REASONS = {
 };
 const rankReasonText = (reason, level) => (RANK_REASONS[reason] ? pick(level, RANK_REASONS[reason]) : reasonText(reason, level));
 
+// Key guess: why a key is suggested.
+function keyReasonText(reason, coverage, level) {
+  const percent = Math.round(coverage * 100);
+  return pick(level, {
+    'fits-all': { beginner: 'every note fits', intermediate: 'every pitch is in the scale' },
+    'fits-most': { beginner: `${percent}% of the notes fit`, intermediate: `${percent}% of the pitches are in the scale` },
+    'ends-on-tonic': { beginner: 'ends on home', intermediate: 'ends on the tonic' },
+    'chords-diatonic': { beginner: 'all the chords belong', intermediate: 'every chord is diatonic' },
+  }[reason] ?? { intermediate: reason });
+}
+
 export const en = {
   noteName,
   roleNames: ROLE_NAMES,
@@ -373,4 +384,5 @@ export const en = {
   critiqueText,
   ghostReasonText,
   rankReasonText,
+  keyReasonText,
 };

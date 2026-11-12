@@ -1,12 +1,14 @@
 // Chords for a melody: how well a slot's chord fits the melody inside it (the
-// fit dot) and a ranked list of chords for that melody. The key guess joins
-// this module in a later milestone.
+// fit dot), a ranked list of chords for that melody, and a guess at the key
+// from the notes and chords together.
 
 import { analyzeChord, chordPalette, findCadences, nextChords } from './analysis.js';
 import { diatonicChords } from './chords.js';
-import { segmentWeight, segments } from './composition.js';
+import { TICKS_PER_BEAT, segmentWeight, segments } from './composition.js';
 import { TIER_SCORE, fitScore, laneFit } from './melodyFit.js';
+import { mod12, pcOf } from './notes.js';
 import { notesOverChord } from './overChord.js';
+import { SCALES, buildKey } from './scales.js';
 
 /** 'good' | 'ok' | 'clash' for a fit score, or null for none. */
 export function fitLevel(score) {
@@ -103,4 +105,62 @@ export function rankChords(key, slots, lane, slotIndex, { style = 'pop', loop = 
   return scored
     .filter((c) => c.group === 'diatonic' || c.fit > bestDiatonic)
     .sort((a, b) => b.score - a.score || b.fit - a.fit);
+}
+
+// ---------- Key guess ----------
+
+const KEY_BONUS = { endsOnTonic: 0.15, startsWell: 0.05, unused: 0.03 };
+
+/** Pitch-class weights: lane notes by length, each chord tone of a filled slot as a quarter note. */
+function pitchWeights(melody, slots, bass) {
+  const weights = new Array(12).fill(0);
+  for (const lane of [melody, bass]) for (const n of lane?.notes ?? []) weights[mod12(n.midi)] += n.length;
+  for (const slot of slots) for (const tone of slot.chord?.tones ?? []) weights[pcOf(tone.note)] += TICKS_PER_BEAT;
+  return weights;
+}
+
+/**
+ * The three keys that explain the melody, bass and chords best:
+ * `[{ rootPc, scaleId, score, coverage, reasons }]`. Coverage is the weighted
+ * share of pitches inside the scale; a melody that ends on the tonic, or
+ * starts on the tonic or 5th, scores extra (scaled by coverage², so a key
+ * that misses notes earns less from them); every scale note the music never
+ * touches costs a little. The blues scale is only in the running when its
+ * blue note is actually played. Ties go to a key whose tonic is played.
+ */
+export function guessKeys(melody, slots, bass = { notes: [] }) {
+  const weights = pitchWeights(melody, slots, bass);
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (!total) return [];
+  const first = melody.notes[0] && mod12(melody.notes[0].midi);
+  const last = melody.notes.length ? mod12(melody.notes.at(-1).midi) : null;
+  const chords = slots.filter((s) => s.chord).map((s) => s.chord);
+
+  const results = [];
+  for (let rootPc = 0; rootPc < 12; rootPc++) {
+    for (const scaleId of Object.keys(SCALES)) {
+      const key = buildKey(rootPc, scaleId);
+      if (key.blueNotePc != null && !weights[key.blueNotePc]) continue;
+      const covered = weights.reduce((sum, w, pc) => sum + (key.scalePcs.has(pc) ? w : 0), 0);
+      const coverage = covered / total;
+      const unused = [...key.scalePcs].filter((pc) => !weights[pc]).length;
+      const endsOnTonic = last === rootPc;
+      const startsWell = first != null && (first === rootPc || first === mod12(rootPc + 7));
+      const chordsDiatonic = chords.length > 0 && chords.every((c) => analyzeChord(key, c).source === 'diatonic');
+      const confidence = coverage * coverage;
+      const score = coverage
+        + (endsOnTonic ? KEY_BONUS.endsOnTonic * confidence : 0)
+        + (startsWell ? KEY_BONUS.startsWell * confidence : 0)
+        - unused * KEY_BONUS.unused;
+      const reasons = [coverage >= 1 ? 'fits-all' : 'fits-most'];
+      if (endsOnTonic) reasons.push('ends-on-tonic');
+      if (chordsDiatonic) reasons.push('chords-diatonic');
+      results.push({ rootPc, scaleId, score, coverage, reasons });
+    }
+  }
+  return results
+    .sort((a, b) => b.score - a.score || b.coverage - a.coverage
+      || (weights[b.rootPc] > 0) - (weights[a.rootPc] > 0)
+      || SCALES[b.scaleId].degrees.length - SCALES[a.scaleId].degrees.length)
+    .slice(0, 3);
 }
