@@ -108,6 +108,7 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
   onLoop: store.setLoop,
   onClickTrack: store.setClick,
   onGrid: store.setGrid,
+  onStyle: store.setStyle,
   onMute: store.toggleMute,
   onSolo: store.toggleSolo,
 });
@@ -130,7 +131,11 @@ const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
   currentTick: () => transport.tick(),
 });
 const panel = createChordPanel(document.querySelector('#chords'), { onChordClick });
-const composerPanel = createComposerPanel(document.querySelector('#chords'), { onPickChord, onNextChord });
+const composerPanel = createComposerPanel(document.querySelector('#chords'), {
+  onPickChord,
+  onNextChord,
+  onSelectNote: store.selectLaneNote,
+});
 const legends = {
   explore: document.querySelector('#legend-explore'),
   composer: document.querySelector('#legend-composer'),

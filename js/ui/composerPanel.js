@@ -4,8 +4,10 @@
 // A tab click overrides that until the selection changes.
 
 import {
-  adviceText, avoidReasonText, cadenceText, functionText, guideToneText, noteOverChordText, reasonText, tierText,
+  adviceText, avoidReasonText, cadenceText, critiqueName, critiqueText, functionText, guideToneText, noteOverChordText,
+  reasonText, tierText,
 } from '../theory/adviceText.js';
+import { noteFit, noteTier } from '../theory/melodyFit.js';
 import { chordPalette } from '../theory/analysis.js';
 import { CHORD_QUALITIES, buildChord } from '../theory/chords.js';
 import { LETTERS, prettyName } from '../theory/notes.js';
@@ -20,7 +22,9 @@ const QUALITY_LABELS = {
   dim: 'dim', aug: 'aug', maj7: 'maj7', dom7: '7', min7: 'm7', m7b5: 'm7♭5', dim7: 'dim7', mMaj7: 'm(maj7)',
 };
 
-export function createComposerPanel(container, { onPickChord, onNextChord }) {
+const octaveOf = (midi) => Math.floor(midi / 12) - 1;
+
+export function createComposerPanel(container, { onPickChord, onNextChord, onSelectNote }) {
   // View-only UI state: which picker tab is shown and whether the picker is open.
   let activeTab = 'diatonic';
   let pickerOpen = false;
@@ -174,22 +178,84 @@ export function createComposerPanel(container, { onPickChord, onNextChord }) {
     ];
   }
 
-  function pieceTab(state) {
-    const text = ui(state.lang).composer;
-    const about = aboutSection(state);
+  /** One critique item as a list entry; clicking it selects the note on the roll. */
+  function remarkItem(state, item, { withBar = false } = {}) {
+    const { level, lang } = state;
+    const note = state.melody.notes[item.noteIndex];
+    return h('li', { 'data-rule': item.rule },
+      h('button', {
+        type: 'button',
+        class: 'remark',
+        'data-id': `remark-${item.noteIndex}-${item.rule}`,
+        onclick: () => onSelectNote({ lane: 'melody', start: note.start }),
+      },
+      h('span', { class: 'remark-name' }, critiqueName(item.rule, level, lang)),
+      withBar && h('span', { class: 'remark-where' }, ui(lang).composer.remarkAt(item.data.bar)),
+      h('span', { class: 'remark-text' }, prettyText(critiqueText(item, level, lang)))));
+  }
+
+  function melodyTab(state) {
+    const { level, lang, selectedNote } = state;
+    const text = ui(lang).composer;
+    const index = selectedNote?.lane === 'melody' ? state.melody.notes.findIndex((n) => n.start === selectedNote.start) : -1;
+    if (index < 0) return [h('h2', {}, text.melodyTitle), h('p', { class: 'hint' }, text.hintMelody)];
+    const note = state.melody.notes[index];
+    const entry = state.melodyFit[index];
+    const tier = noteTier(entry);
+    const first = entry.segments.find((s) => s.chord) ?? entry.segments[0];
+    const name = `${prettyName(first.note, lang)}${octaveOf(note.midi)}`;
+    const bar = Math.floor(note.start / 48) + 1;
+    const remarks = state.critique.filter((it) => it.noteIndex === index);
+    const fit = noteFit(entry);
     return [
-      h('h2', {}, text.pieceTitle),
-      about ?? h('p', { class: 'hint' }, text.hintPiece),
+      h('h2', {},
+        h('span', { class: `note-badge tier-badge`, 'data-tier': tier }, name),
+        h('span', { class: 'bar-label' }, text.noteHead(name, bar).replace(`${name}, `, ''))),
+      h('p', { class: 'note-line', 'data-fit': fit == null ? false : fit.toFixed(2) },
+        first.chord
+          ? [prettyText(noteOverChordText({ ...first, note: first.note }, first.chord, level, lang)),
+            first.tier === 'avoid' && first.reason && ` (${prettyText(avoidReasonText(first, level, lang))})`]
+          : text.noteOverNothing(name)),
+      h('section', { class: 'remarks' },
+        h('h3', {}, text.remarks),
+        remarks.length
+          ? h('ul', { class: 'remark-list' }, remarks.map((it) => remarkItem(state, it)))
+          : h('p', { class: 'hint' }, text.noRemarks)),
     ];
   }
 
+  function remarksSection(state) {
+    const text = ui(state.lang).composer;
+    if (!state.melody.notes.length) return null;
+    return h('section', { class: 'remarks' },
+      h('h3', {}, text.pieceRemarks),
+      state.critique.length
+        ? h('ul', { class: 'remark-list' }, state.critique.map((it) => remarkItem(state, it, { withBar: true })))
+        : h('p', { class: 'hint' }, text.allGood));
+  }
+
+  function pieceTab(state) {
+    const text = ui(state.lang).composer;
+    const about = aboutSection(state);
+    const remarks = remarksSection(state);
+    return [
+      h('h2', {}, text.pieceTitle),
+      remarks,
+      about ?? (remarks ? null : h('p', { class: 'hint' }, text.hintPiece)),
+    ];
+  }
+
+  const TABS = { chord: chordTab, melody: melodyTab, piece: pieceTab };
+
+  /** The tab follows the selection: a note shows Melody, a bar shows Chord, nothing shows Piece. */
   function draw(state) {
-    const selection = state.selectedSlot ? `${state.selectedSlot.bar}-${state.selectedSlot.half}` : null;
+    const { selectedNote: note, selectedSlot: slot } = state;
+    const selection = note ? `note-${note.lane}-${note.start}` : slot ? `slot-${slot.bar}-${slot.half}` : null;
     if (selection !== lastSelection) {
-      tab = selection ? 'chord' : 'piece';
+      tab = note ? 'melody' : slot ? 'chord' : 'piece';
       lastSelection = selection;
     }
-    show(tabBar(state), ...(tab === 'chord' ? chordTab(state) : pieceTab(state)));
+    show(tabBar(state), ...TABS[tab](state));
   }
 
   function render(state) {

@@ -1,12 +1,12 @@
 // Playback controls in Composer: play/stop, tempo, loop, click, grid and the
 // per-lane mix. The title, style and file buttons join this bar in later milestones.
 
-import { GRIDS, isAudible } from '../theory/composition.js';
+import { GRIDS, STYLES, isAudible } from '../theory/composition.js';
 import { ui } from './strings.js';
 
 const MIX_LANES = ['chords', 'melody']; // the bass lane arrives with the bass roll
 
-export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onMute, onSolo }) {
+export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onStyle, onMute, onSolo }) {
   container.innerHTML = `
     <div class="transport" role="group" data-label="aria-label:group">
       <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
@@ -16,6 +16,9 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
       <label class="check"><input type="checkbox" name="click"> <span data-label="click"></span></label>
       <label class="field"><span data-label="grid"></span>
         <select name="grid">${GRIDS.map((g) => `<option value="${g}">1/${g}</option>`).join('')}</select>
+      </label>
+      <label class="field"><span data-label="style"></span>
+        <select name="style">${STYLES.map((id) => `<option value="${id}" data-label="styles.${id}"></option>`).join('')}</select>
       </label>
       <div class="mix" role="group" data-label="aria-label:mix">
         ${MIX_LANES.map((lane) => `
@@ -34,6 +37,7 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
   const loop = $('[name=loop]');
   const click = $('[name=click]');
   const grid = $('[name=grid]');
+  const style = $('[name=style]');
   const mixLanes = [...container.querySelectorAll('.mix-lane')];
   let renderedLang = null;
 
@@ -60,6 +64,7 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
   loop.addEventListener('change', () => onLoop(loop.checked));
   click.addEventListener('change', () => onClickTrack(click.checked));
   grid.addEventListener('change', () => onGrid(Number(grid.value)));
+  style.addEventListener('change', () => onStyle(style.value));
   for (const el of mixLanes) {
     el.querySelector('[data-mix=mute]').addEventListener('click', () => onMute(el.dataset.lane));
     el.querySelector('[data-mix=solo]').addEventListener('click', () => onSolo(el.dataset.lane));
@@ -85,6 +90,7 @@ export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onL
       loop.checked = state.playback.loop;
       click.checked = state.playback.click;
       grid.value = String(state.grid);
+      style.value = state.style;
       for (const el of mixLanes) {
         const lane = el.dataset.lane;
         el.classList.toggle('silent', !isAudible(state.mix, lane));

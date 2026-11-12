@@ -36,7 +36,7 @@ export function cellTiers(key, slots, analyses = []) {
 
 /**
  * One entry per note of `lane`: `{ note, segments }`, each segment a piece of the
- * note inside one slot with `{ start, length, slot, chord, tier, label, weight }`.
+ * note inside one slot with `{ start, length, slot, chord, tier, label, note, reason, weight }`.
  * Pieces past the last bar read as an empty slot.
  */
 export function laneFit(key, slots, lane, analyses) {
@@ -53,6 +53,8 @@ export function laneFit(key, slots, lane, analyses) {
         chord: seg.slot?.chord ?? null,
         tier: info.tier,
         label: info.label,
+        note: info.note,
+        reason: info.reason ?? null,
         weight: segmentWeight(seg),
       };
     }),

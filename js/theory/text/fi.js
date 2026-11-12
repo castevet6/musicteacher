@@ -289,6 +289,57 @@ const EXPLAIN_TEXTS = {
   },
 };
 
+// Melodian huomiot: lyhyt nimi säännölle ja lause yhdestä merkitystä sävelestä.
+const CRITIQUE_NAMES = {
+  'nct-strong-beat': { beginner: 'Soinnun ulkopuolella vahvalla iskulla', intermediate: 'Sointuun kuulumaton sävel vahvalla iskulla' },
+  'avoid-held': { beginner: 'Hankaava sävel pitkänä', intermediate: 'Pitkä vältettävä sävel' },
+  'outside-unresolved': { beginner: 'Vieras sävel jää ilmaan', intermediate: 'Purkautumaton kromaattinen sävel' },
+  'big-leap': { beginner: 'Iso hyppy', intermediate: 'Hyppy ilman paluuta' },
+  'bar-no-chord-tone': { beginner: 'Tahti ohittaa soinnun', intermediate: 'Tahdissa ei soinnun säveliä' },
+  'ends-off-chord': { beginner: 'Lopetus soinnun ulkopuolella', intermediate: 'Päättyy sointuun kuulumattomaan säveleen' },
+};
+
+const critiqueName = (rule, level) => pick(level, CRITIQUE_NAMES[rule]);
+
+function critiqueText({ rule, data }, level) {
+  const n = N(data.note);
+  const c = data.chord && S(data.chord);
+  switch (rule) {
+    case 'nct-strong-beat':
+      return pick(level, {
+        beginner: `${n} osuu vahvalle iskulle, mutta ei kuulu sointuun ${c}. Siirrä sitä tai astu heti perään soinnun säveleen.`,
+        intermediate: `${n} (${data.label}) tahdin ${data.bar} iskulla ${data.beat} on sointuun ${c} kuulumaton sävel, joka ei purkaudu asteittain.`,
+      });
+    case 'avoid-held':
+      return pick(level, {
+        beginner: `${n} hankaa sointua ${c} vastaan. Pidä se lyhyenä tai kulje sen läpi.`,
+        intermediate: `${n} on vältettävä sävel soinnun ${c} päällä (${data.label}), ja se kestää yli yhden ruudun.`,
+      });
+    case 'outside-unresolved':
+      return pick(level, {
+        beginner: `${n} on sävellajin ulkopuolella. Se kuulostaa oikealta, kun siihen kävellään ja siitä pois askel kerrallaan.`,
+        intermediate: `${n} on kromaattinen sävel, jota ei sekä lähestytä että jätetä asteittain.`,
+      });
+    case 'big-leap':
+      return pick(level, {
+        beginner: `Iso hyppy ${data.up ? 'ylös' : 'alas'} säveleen ${n}. Hypyn jälkeen melodia kääntyy yleensä askeleen takaisin.`,
+        intermediate: `${data.interval} puolisävelaskeleen hyppy säveleen ${n} ilman asteittaista paluuta vastakkaiseen suuntaan.`,
+      });
+    case 'bar-no-chord-tone':
+      return pick(level, {
+        beginner: `Tahti ${data.bar} ei koske yhteenkään soinnun ${c} säveleen. Lisää yksi, niin sävel ja sointu sopivat yhteen.`,
+        intermediate: `Tahdissa ${data.bar} ei ole yhtään soinnun ${c} säveltä, joten melodia ei kiinnity harmoniaan.`,
+      });
+    case 'ends-off-chord':
+      return pick(level, {
+        beginner: `Viimeinen sävel ${n} ei kuulu sointuun ${c}. Soinnun säveleen päättyminen tuntuu valmiilta.`,
+        intermediate: `Kappale päättyy säveleen ${n}, joka ei kuulu sointuun ${c} (${data.label}).`,
+      });
+    default:
+      return '';
+  }
+}
+
 export const fi = {
   noteName: N,
   roleNames: ROLE_NAMES,
@@ -330,4 +381,6 @@ export const fi = {
   avoidReasonText,
   guideToneText,
   noteOverChordText,
+  critiqueName,
+  critiqueText,
 };

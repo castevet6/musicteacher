@@ -5,6 +5,7 @@
 
 import { TICKS_PER_BAR, TICKS_PER_BEAT, gridTicks, noteAt, slotSpan } from '../theory/composition.js';
 import { h } from './dom.js';
+import { critiqueText } from '../theory/adviceText.js';
 import { noteTier } from '../theory/melodyFit.js';
 import { SVG_NS, displayName, svgEl } from './highlight.js';
 import { ui } from './strings.js';
@@ -198,6 +199,11 @@ export function createRoll(container, handlers) {
     const selected = state.selectedNote;
     const sounding = state.playback.sounding[lane];
     const fits = new Map((state[`${lane}Fit`] ?? []).map((entry) => [entry.note.start, entry]));
+    const remarksByStart = new Map();
+    for (const item of (lane === 'melody' ? state.critique : state.bassCritique) ?? []) {
+      const start = state[lane].notes[item.noteIndex]?.start;
+      remarksByStart.set(start, [...(remarksByStart.get(start) ?? []), item]);
+    }
     for (const note of state[lane].notes) {
       const x = xOf(note.start);
       const w = xEnd(note.start + note.length) - x;
@@ -205,8 +211,12 @@ export function createRoll(container, handlers) {
       const isSounding = sounding?.start === note.start;
       const fit = fits.get(note.start);
       const tier = fit && noteTier(fit);
-      const classes = `note${isSelected ? ' selected' : ''}${isSounding ? ' sounding' : ''}${tier ? ` tier-${tier}` : ''}`;
-      const g = svgEl('g', { class: classes, 'data-start': note.start, 'data-tier': tier ?? false }, notes);
+      const remarks = remarksByStart.get(note.start) ?? [];
+      const flagged = remarks.length ? ' flagged' : '';
+      const classes = `note${isSelected ? ' selected' : ''}${isSounding ? ' sounding' : ''}${tier ? ` tier-${tier}` : ''}${flagged}`;
+      const g = svgEl('g', {
+        class: classes, 'data-start': note.start, 'data-tier': tier ?? false, 'data-rules': remarks.length ? remarks.map((it) => it.rule).join(' ') : false,
+      }, notes);
       svgEl('rect', { class: 'note-body', x, y: yOf(note.midi) + 1, width: w, height: rowH - 2, rx: 3 }, g);
       // A note that crosses into another chord shows each piece in its own tier.
       if (fit && fit.segments.length > 1) {
@@ -221,6 +231,12 @@ export function createRoll(container, handlers) {
           .textContent = displayName(state, note.midi % 12);
       }
       svgEl('rect', { class: 'note-handle', x: x + w - 5, y: yOf(note.midi) + 1, width: 5, height: rowH - 2 }, g);
+      if (remarks.length) {
+        // A small flag in the note's top-left corner; the panel has the words.
+        const y0 = yOf(note.midi) + 1;
+        svgEl('path', { class: 'marker', d: `M${x} ${y0} h7 l-7 7 z`, 'data-rule': remarks[0].rule }, g);
+        svgEl('title', {}, g).textContent = remarks.map((it) => critiqueText(it, state.level, state.lang)).join(' ');
+      }
     }
 
     playhead = svgEl('line', { class: 'playhead', x1: 0, x2: 0, y1: 0, y2: height, visibility: 'hidden' }, frag);

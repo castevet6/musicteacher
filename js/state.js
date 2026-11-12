@@ -7,6 +7,7 @@ import {
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
 import { slotFitScore, fitLevel } from './theory/harmonize.js';
+import { critiqueLane } from './theory/melodyCritique.js';
 import { cellTiers, laneFit } from './theory/melodyFit.js';
 import { buildKey } from './theory/scales.js';
 import { suggestChords } from './theory/suggest.js';
@@ -30,6 +31,7 @@ let state = derive({
   activeChord: null,
   progression: emptyProgression(4),
   selectedSlot: null, // { bar, half }
+  style: 'pop', // 'pop' | 'jazz' | 'folk': weights and thresholds, never the chord vocabulary
   grid: 8, // roll grid: 4, 8 or 16 cells per bar
   melody: emptyLane(), // absolute MIDI notes in ticks; chords are relative, lanes are not
   bass: emptyLane(),
@@ -57,7 +59,8 @@ function derive(next) {
   const tiers = cellTiers(key, slots, analysis.chords);
   const melodyFit = laneFit(key, slots, next.melody, analysis.chords);
   const slotFits = slots.map((slot) => (slot.chord ? fitLevel(slotFitScore(melodyFit, slot.index)) : null));
-  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits };
+  const critique = critiqueLane(key, slots, next.melody, { style: next.style, level: next.level, grid: next.grid, fit: melodyFit });
+  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits, critique };
 }
 
 function update(patch) {
@@ -155,6 +158,7 @@ export function selectSlot(addr) {
 // ---------- Lanes (melody, bass) ----------
 
 export const setGrid = (grid) => update({ grid });
+export const setStyle = (style) => update({ style });
 export const toggleMap = () => update({ showMap: !state.showMap });
 
 /** Selecting a note also focuses the chord under it and lights its pitch on the instrument. */

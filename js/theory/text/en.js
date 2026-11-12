@@ -249,6 +249,57 @@ const EXPLAIN_TEXTS = {
   },
 };
 
+// Melody critique: a short name per rule and the sentence for one flagged note.
+const CRITIQUE_NAMES = {
+  'nct-strong-beat': { beginner: 'Off the chord on a strong beat', intermediate: 'Non-chord tone on a strong beat' },
+  'avoid-held': { beginner: 'Rubbing note held', intermediate: 'Held avoid note' },
+  'outside-unresolved': { beginner: 'Outside note left hanging', intermediate: 'Unresolved chromatic note' },
+  'big-leap': { beginner: 'Big jump', intermediate: 'Unrecovered leap' },
+  'bar-no-chord-tone': { beginner: 'Bar misses the chord', intermediate: 'No chord tone in the bar' },
+  'ends-off-chord': { beginner: 'Ending off the chord', intermediate: 'Ends on a non-chord tone' },
+};
+
+const critiqueName = (rule, level) => pick(level, CRITIQUE_NAMES[rule]);
+
+function critiqueText({ rule, data }, level) {
+  const n = noteName(data.note);
+  const c = data.chord?.symbol;
+  switch (rule) {
+    case 'nct-strong-beat':
+      return pick(level, {
+        beginner: `${n} lands on a strong beat but is not in ${c}. Move it, or step to a chord note right after it.`,
+        intermediate: `${n} (${data.label}) on beat ${data.beat} of bar ${data.bar} is a non-chord tone over ${c} and does not resolve by step.`,
+      });
+    case 'avoid-held':
+      return pick(level, {
+        beginner: `${n} rubs against ${c}. Keep it short or pass through it.`,
+        intermediate: `${n} is an avoid note over ${c} (${data.label}) and is held longer than one grid step.`,
+      });
+    case 'outside-unresolved':
+      return pick(level, {
+        beginner: `${n} is outside the key. It sounds right when you walk into it and out of it one step at a time.`,
+        intermediate: `${n} is a chromatic note that is not both approached and left by step.`,
+      });
+    case 'big-leap':
+      return pick(level, {
+        beginner: `A big jump ${data.up ? 'up' : 'down'} to ${n}. After a jump, melodies usually turn back one step.`,
+        intermediate: `Leap of ${data.interval} semitones to ${n} without a stepwise recovery in the opposite direction.`,
+      });
+    case 'bar-no-chord-tone':
+      return pick(level, {
+        beginner: `Bar ${data.bar} never touches a note of ${c}. Add one so the tune and the chord agree.`,
+        intermediate: `Bar ${data.bar} has no chord tone of ${c}, so the melody is not anchored to the harmony.`,
+      });
+    case 'ends-off-chord':
+      return pick(level, {
+        beginner: `The last note ${n} is not in ${c}. Ending on a chord note feels finished.`,
+        intermediate: `The piece ends on ${n}, a non-chord tone (${data.label}) over ${c}.`,
+      });
+    default:
+      return '';
+  }
+}
+
 export const en = {
   noteName,
   roleNames: ROLE_NAMES,
@@ -297,4 +348,6 @@ export const en = {
   avoidReasonText,
   guideToneText,
   noteOverChordText,
+  critiqueName,
+  critiqueText,
 };
