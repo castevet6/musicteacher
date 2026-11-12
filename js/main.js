@@ -6,9 +6,11 @@ import { createChordPanel } from './ui/chordPanel.js';
 import { createControls } from './ui/controls.js';
 import { createGuitar } from './ui/guitar.js';
 import { detectLang, translatePage } from './ui/pageText.js';
+import { ui } from './ui/strings.js';
+import { createChordStrip } from './ui/chordStrip.js';
+import { createComposerPanel } from './ui/composerPanel.js';
 import { createPiano } from './ui/piano.js';
-import { createProgressionPanel } from './ui/progressionPanel.js';
-import { createProgressionStrip } from './ui/progressionStrip.js';
+import { createTransportBar } from './ui/transportBar.js';
 
 const strum = () => store.getState().instrument === 'guitar';
 
@@ -75,26 +77,33 @@ const instruments = {
   guitar: createGuitar(document.querySelector('#guitar'), { onNoteClick }),
   piano: createPiano(document.querySelector('#piano'), { onNoteClick }),
 };
-const strip = createProgressionStrip(document.querySelector('#progression'), {
+const strip = createChordStrip({ toolbar: document.querySelector('#strip-toolbar'), bars: document.querySelector('#bars') }, {
   onBarCount: store.setBarCount,
   onPreset: store.loadPreset,
   onClear: () => {
     stopPlayback();
     store.clearProgression();
   },
+  onSelectSlot,
+  onToggleSplit: store.toggleSplit,
+});
+const transportBar = createTransportBar(document.querySelector('#transport'), {
   onPlay,
   onTempo: store.setTempo,
   onLoop: store.setLoop,
   onClickTrack: store.setClick,
-  onSelectSlot,
-  onToggleSplit: store.toggleSplit,
 });
 const panel = createChordPanel(document.querySelector('#chords'), { onChordClick });
-const progressionPanel = createProgressionPanel(document.querySelector('#chords'), { onPickChord, onNextChord });
+const composerPanel = createComposerPanel(document.querySelector('#chords'), { onPickChord, onNextChord });
 const legends = {
   explore: document.querySelector('#legend-explore'),
-  progression: document.querySelector('#legend-progression'),
+  composer: document.querySelector('#legend-composer'),
 };
+const composerSection = document.querySelector('#composer');
+const instrumentHead = document.querySelector('#instrument-head');
+const instrumentBody = document.querySelector('#instrument-body');
+const collapseButton = document.querySelector('#collapse-instrument');
+collapseButton.addEventListener('click', store.toggleInstrument);
 
 let pageLang = null;
 
@@ -104,16 +113,24 @@ store.subscribe((state) => {
     translatePage(state.lang);
     pageLang = state.lang;
   }
-  const progression = state.mode === 'progression';
+  const composer = state.mode === 'composer';
   controls.render(state);
-  strip.show(progression);
-  if (progression) strip.render(state);
+  composerSection.hidden = !composer;
+  if (composer) {
+    transportBar.render(state);
+    strip.render(state);
+  }
+  const collapsed = composer && state.instrumentCollapsed;
+  instrumentHead.hidden = !composer;
+  instrumentBody.hidden = collapsed;
+  collapseButton.setAttribute('aria-expanded', String(!collapsed));
+  collapseButton.textContent = collapsed ? ui(state.lang).composer.showInstrument : ui(state.lang).composer.hideInstrument;
   for (const [id, view] of Object.entries(instruments)) {
     view.show(id === state.instrument);
     view.render(state);
   }
   for (const [mode, legend] of Object.entries(legends)) legend.hidden = mode !== state.mode;
-  (progression ? progressionPanel : panel).render(state);
+  (composer ? composerPanel : panel).render(state);
 });
 
 document.addEventListener('keydown', (event) => {

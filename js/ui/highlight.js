@@ -14,10 +14,10 @@ export function displayName(state, pc) {
   return prettyName(defaultSpelling(pc, key.accidentals), state.lang);
 }
 
-// Progression mode: classes for each tier from notesOverChord().
+// Composer: classes for each tier from notesOverChord().
 const TIER_CLASSES = { chord: 'chord-tone', scale: 'tension', parent: 'parent-tone', avoid: 'avoid', blue: 'blue-note' };
 
-/** Progression mode with a chord in focus: every note gets its tier over the chord. */
+/** Composer with a chord in focus: every note gets its tier over the chord. */
 function applyChordTiers(positions, state) {
   const { selected, focus } = state;
   const guide = new Set(focus.guideTones.map((m) => pcOf(m.from)));
@@ -49,7 +49,7 @@ function applyChordTiers(positions, state) {
 const prettyLabel = (label) => label.replace(/b(?=\d)/g, '♭').replace(/#/g, '♯');
 
 export function applyHighlights(positions, state) {
-  if (state.mode === 'progression' && state.focus?.chord) {
+  if (state.mode === 'composer' && state.focus?.chord) {
     applyChordTiers(positions, state);
     return;
   }

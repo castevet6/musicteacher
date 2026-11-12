@@ -2,7 +2,7 @@ import { LANGS } from '../theory/text/index.js';
 import { SCALES, rootLabel, scaleLabel } from '../theory/scales.js';
 import { ui } from './strings.js';
 
-const MODES = ['explore', 'progression'];
+const MODES = ['explore', 'composer'];
 const INSTRUMENTS = ['guitar', 'piano'];
 const LEVELS = ['beginner', 'intermediate'];
 // Language names stay in their own language, so they are readable from either side.
@@ -70,7 +70,7 @@ export function createControls(container, { onMode, onInstrument, onRoot, onScal
       for (const name of Object.keys(handlers)) {
         radios(name).forEach((radio) => { radio.checked = radio.value === state[name]; });
       }
-      levelGroup.hidden = state.mode !== 'progression';
+      levelGroup.hidden = state.mode !== 'composer';
     },
   };
 }

@@ -1,56 +1,41 @@
-// The bar strip above the instrument in progression mode: bar count, presets,
-// transport, and one cell per bar holding one or two chord slots.
+// The chord strip in Composer: a toolbar (bar count, presets, clear) and one
+// cell per bar inside the timeline, holding one or two chord slots.
 
 import { MAX_BARS, PRESETS, presetLabel, sameAddress } from '../theory/progression.js';
 import { h, prettySymbol, prettyText } from './dom.js';
 import { ui } from './strings.js';
 
-export function createProgressionStrip(container, handlers) {
-  const {
-    onBarCount, onPreset, onClear, onPlay, onTempo, onLoop, onClickTrack, onSelectSlot, onToggleSplit,
-  } = handlers;
+export function createChordStrip({ toolbar, bars }, handlers) {
+  const { onBarCount, onPreset, onClear, onSelectSlot, onToggleSplit } = handlers;
 
-  container.innerHTML = `
-    <div class="strip-toolbar">
-      <div class="stepper" role="group" data-label="aria-label:barsGroup">
-        <button type="button" class="btn icon" data-act="fewer" data-label="aria-label:fewer">−</button>
-        <output class="bar-count" aria-live="polite"></output>
-        <button type="button" class="btn icon" data-act="more" data-label="aria-label:more">+</button>
-      </div>
-      <label class="field"><span data-label="preset"></span>
-        <select name="preset">
-          <option value="" data-label="choose"></option>
-          ${Object.keys(PRESETS).map((id) => `<option value="${id}"></option>`).join('')}
-        </select>
-      </label>
-      <button type="button" class="btn" data-act="clear" data-label="clear"></button>
-      <div class="transport">
-        <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
-        <label class="field"><span data-label="bpm"></span> <input type="number" name="bpm" min="40" max="200" step="1" inputmode="numeric"></label>
-        <label class="check"><input type="checkbox" name="loop"> <span data-label="loop"></span></label>
-        <label class="check"><input type="checkbox" name="click"> <span data-label="click"></span></label>
-      </div>
+  toolbar.innerHTML = `
+    <div class="stepper" role="group" data-label="aria-label:barsGroup">
+      <button type="button" class="btn icon" data-act="fewer" data-label="aria-label:fewer">−</button>
+      <output class="bar-count" aria-live="polite"></output>
+      <button type="button" class="btn icon" data-act="more" data-label="aria-label:more">+</button>
     </div>
-    <ol class="bars" data-label="aria-label:bars"></ol>`;
+    <label class="field"><span data-label="preset"></span>
+      <select name="preset">
+        <option value="" data-label="choose"></option>
+        ${Object.keys(PRESETS).map((id) => `<option value="${id}"></option>`).join('')}
+      </select>
+    </label>
+    <button type="button" class="btn" data-act="clear" data-label="clear"></button>`;
 
-  const $ = (selector) => container.querySelector(selector);
+  const $ = (selector) => toolbar.querySelector(selector);
   const count = $('.bar-count');
   const preset = $('[name=preset]');
-  const play = $('[data-act=play]');
-  const bpm = $('[name=bpm]');
-  const loop = $('[name=loop]');
-  const click = $('[name=click]');
-  const bars = $('.bars');
   let barCount = 0;
   let renderedLang = null;
 
   function translate(lang) {
     const text = ui(lang).strip;
-    for (const el of container.querySelectorAll('[data-label]')) {
+    for (const el of toolbar.querySelectorAll('[data-label]')) {
       const [attr, id] = el.dataset.label.includes(':') ? el.dataset.label.split(':') : [null, el.dataset.label];
       if (attr) el.setAttribute(attr, text[id]);
       else el.textContent = text[id];
     }
+    bars.setAttribute('aria-label', text.bars);
     for (const option of preset.options) if (option.value) option.textContent = prettyText(presetLabel(option.value, lang));
     renderedLang = lang;
   }
@@ -58,14 +43,10 @@ export function createProgressionStrip(container, handlers) {
   $('[data-act=fewer]').addEventListener('click', () => onBarCount(barCount - 1));
   $('[data-act=more]').addEventListener('click', () => onBarCount(barCount + 1));
   $('[data-act=clear]').addEventListener('click', onClear);
-  play.addEventListener('click', onPlay);
   preset.addEventListener('change', () => {
     if (preset.value) onPreset(preset.value);
     preset.value = '';
   });
-  bpm.addEventListener('change', () => onTempo(Number(bpm.value)));
-  loop.addEventListener('change', () => onLoop(loop.checked));
-  click.addEventListener('change', () => onClickTrack(click.checked));
 
   function slotButton(slot, state) {
     const analysis = state.analysis.chords[slot.index];
@@ -117,17 +98,7 @@ export function createProgressionStrip(container, handlers) {
       count.value = text.barCount(barCount);
       $('[data-act=fewer]').disabled = barCount <= 1;
       $('[data-act=more]').disabled = barCount >= MAX_BARS;
-      const { playing } = state.playback;
-      play.textContent = playing ? text.stop : text.play;
-      play.setAttribute('aria-pressed', String(playing));
-      play.disabled = !playing && !state.slots.some((s) => s.chord);
-      if (document.activeElement !== bpm) bpm.value = String(state.playback.bpm);
-      loop.checked = state.playback.loop;
-      click.checked = state.playback.click;
       renderBars(state);
-    },
-    show(visible) {
-      container.hidden = !visible;
     },
   };
 }

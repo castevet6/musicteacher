@@ -1,5 +1,7 @@
-// Side panel in progression mode: the selected bar's chord, a chord picker,
-// what to play over the chord, guide tones, next-chord ideas and advice.
+// Side panel in Composer. Its content follows the selection: a selected bar
+// shows the Chord tab (chord picker, what to play over the chord, guide tones,
+// next-chord ideas), nothing selected shows the Piece tab (cadences, advice).
+// A tab click overrides that until the selection changes.
 
 import {
   adviceText, avoidReasonText, cadenceText, functionText, guideToneText, noteOverChordText, reasonText, tierText,
@@ -18,15 +20,17 @@ const QUALITY_LABELS = {
   dim: 'dim', aug: 'aug', maj7: 'maj7', dom7: '7', min7: 'm7', m7b5: 'm7♭5', dim7: 'dim7', mMaj7: 'm(maj7)',
 };
 
-export function createProgressionPanel(container, { onPickChord, onNextChord }) {
+export function createComposerPanel(container, { onPickChord, onNextChord }) {
   // View-only UI state: which picker tab is shown and whether the picker is open.
   let activeTab = 'diatonic';
   let pickerOpen = false;
   let custom = { letter: 'C', acc: 0, quality: 'maj' };
+  let tab = 'piece';
+  let lastSelection = null; // the selected slot the tab last followed
 
   function picker(state, slot) {
     const { lang } = state;
-    const text = ui(lang).progression;
+    const text = ui(lang).composer;
     const qualityLabels = { ...QUALITY_LABELS, maj: text.major, min: text.minor };
     const palette = chordPalette(state.key);
     const tabs = [...palette.map((g) => ({ id: g.id, title: textFor(lang).paletteTitles[g.id] })), { id: 'custom', title: text.custom }];
@@ -79,7 +83,7 @@ export function createProgressionPanel(container, { onPickChord, onNextChord }) 
 
   function notesSection(state) {
     const { focus, level, lang } = state;
-    const text = ui(lang).progression;
+    const text = ui(lang).composer;
     const groups = TIER_ORDER
       .map((tier) => ({ tier, notes: focus.notes.filter((info) => info.tier === tier) }))
       .filter((g) => g.notes.length);
@@ -102,7 +106,7 @@ export function createProgressionPanel(container, { onPickChord, onNextChord }) 
 
   function nextSection(state) {
     const { focus, level, lang } = state;
-    const text = ui(lang).progression;
+    const text = ui(lang).composer;
     if (!focus.next.length) return null;
     return h('section', { class: 'next' },
       h('h3', {}, focus.chord ? text.next : text.ideas),
@@ -125,30 +129,39 @@ export function createProgressionPanel(container, { onPickChord, onNextChord }) 
     ];
     if (!lines.length) return null;
     return h('section', { class: 'about' },
-      h('h3', {}, ui(lang).progression.about),
+      h('h3', {}, ui(lang).composer.about),
       h('ul', { class: 'advice' }, lines.map((l) => h('li', { 'data-kind': l.kind }, prettyText(l.text)))));
   }
 
   const show = (...sections) => container.replaceChildren(...sections.filter(Boolean));
 
-  function draw(state) {
-    const { focus, level, lang } = state;
-    const text = ui(lang).progression;
-    const hasChords = state.slots.some((s) => s.chord);
-    if (!focus) {
-      show(
-        h('h2', {}, text.title),
-        h('p', { class: 'hint' }, hasChords
-          ? text.hintWithChords
-          : text.hintEmpty),
-        aboutSection(state));
-      return;
-    }
+  function tabBar(state) {
+    const text = ui(state.lang).composer;
+    return h('div', { class: 'tabs panel-tabs', role: 'tablist', 'aria-label': text.tabsAria },
+      Object.entries(text.tabs).map(([id, title]) => h('button', {
+        type: 'button',
+        role: 'tab',
+        class: 'tab',
+        'data-id': `panel-tab-${id}`,
+        'aria-selected': String(id === tab),
+        onclick: () => { tab = id; render(state); },
+      }, title)));
+  }
 
+  function chordTab(state) {
+    const { focus, level, lang } = state;
+    const text = ui(lang).composer;
+    if (!focus) {
+      const hasChords = state.slots.some((s) => s.chord);
+      return [
+        h('h2', {}, text.chordTitle),
+        h('p', { class: 'hint' }, hasChords ? text.hintWithChords : text.hintEmpty),
+      ];
+    }
     const { slot, chord, analysis } = focus;
     const where = slot.beats === 2 ? text.barHalf(slot.bar + 1, slot.half) : text.bar(slot.bar + 1);
     const editable = sameAddress(state.selectedSlot, slot);
-    show(
+    return [
       h('h2', {},
         chord ? h('span', { class: 'note-badge chord-badge' }, prettySymbol(chord, lang)) : text.empty,
         analysis && h('span', { class: 'chord-roman' }, prettyText(analysis.roman)),
@@ -158,7 +171,25 @@ export function createProgressionPanel(container, { onPickChord, onNextChord }) 
       editable && picker(state, slot),
       chord && notesSection(state),
       nextSection(state),
-      aboutSection(state));
+    ];
+  }
+
+  function pieceTab(state) {
+    const text = ui(state.lang).composer;
+    const about = aboutSection(state);
+    return [
+      h('h2', {}, text.pieceTitle),
+      about ?? h('p', { class: 'hint' }, text.hintPiece),
+    ];
+  }
+
+  function draw(state) {
+    const selection = state.selectedSlot ? `${state.selectedSlot.bar}-${state.selectedSlot.half}` : null;
+    if (selection !== lastSelection) {
+      tab = selection ? 'chord' : 'piece';
+      lastSelection = selection;
+    }
+    show(tabBar(state), ...(tab === 'chord' ? chordTab(state) : pieceTab(state)));
   }
 
   function render(state) {

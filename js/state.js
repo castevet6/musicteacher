@@ -10,7 +10,8 @@ import { DEFAULT_LANG } from './theory/text/index.js';
 const listeners = new Set();
 
 let state = derive({
-  mode: 'explore', // 'explore' | 'progression'
+  mode: 'explore', // 'explore' | 'composer'
+  instrumentCollapsed: false, // composer only: the roll is the hero, the instrument can fold away
   level: 'intermediate', // 'beginner' | 'intermediate'
   instrument: 'guitar',
   lang: DEFAULT_LANG,
@@ -58,6 +59,7 @@ export function setMode(mode) {
 }
 
 export const setLevel = (level) => update({ level });
+export const toggleInstrument = () => update({ instrumentCollapsed: !state.instrumentCollapsed });
 export const setLang = (lang) => update({ lang });
 
 export function setInstrument(instrument) {

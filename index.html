@@ -15,27 +15,41 @@
   </header>
 
   <main class="layout">
-    <section class="instrument" data-i18n="aria-label:instrumentSection">
-      <div id="progression" class="strip" hidden></div>
-      <div id="guitar"></div>
-      <div id="piano" hidden></div>
-      <ul class="legend" id="legend-explore" data-i18n="aria-label:legendAria">
-        <li><span class="swatch swatch-root"></span><span data-i18n="legend.root"></span></li>
-        <li><span class="swatch swatch-scale"></span><span data-i18n="legend.scaleNote"></span></li>
-        <li><span class="swatch swatch-blue"></span><span data-i18n="legend.blueNote"></span></li>
-        <li><span class="swatch swatch-out"></span><span data-i18n="legend.outOfScale"></span></li>
-        <li><span class="swatch swatch-chord"></span><span data-i18n="legend.chordToneRoles"></span></li>
-      </ul>
-      <ul class="legend" id="legend-progression" data-i18n="aria-label:legendAria" hidden>
-        <li><span class="swatch swatch-root"></span><span data-i18n="legend.chordRoot"></span></li>
-        <li><span class="swatch swatch-chord"></span><span data-i18n="legend.chordTone"></span></li>
-        <li><span class="swatch swatch-scale"></span><span data-i18n="legend.scaleTone"></span></li>
-        <li><span class="swatch swatch-parent"></span><span data-i18n="legend.alsoFits"></span></li>
-        <li><span class="swatch swatch-blue"></span><span data-i18n="legend.blueNote"></span></li>
-        <li><span class="swatch swatch-avoid"></span><span data-i18n="legend.avoid"></span></li>
-        <li><span class="swatch swatch-guide"></span><span data-i18n="legend.guideTone"></span></li>
-      </ul>
-    </section>
+    <div class="stage">
+      <section class="instrument" data-i18n="aria-label:instrumentSection">
+        <div class="section-head" id="instrument-head" hidden>
+          <button type="button" class="btn subtle collapse" id="collapse-instrument" aria-expanded="true" aria-controls="instrument-body"></button>
+        </div>
+        <div id="instrument-body">
+          <div id="guitar"></div>
+          <div id="piano" hidden></div>
+          <ul class="legend" id="legend-explore" data-i18n="aria-label:legendAria">
+            <li><span class="swatch swatch-root"></span><span data-i18n="legend.root"></span></li>
+            <li><span class="swatch swatch-scale"></span><span data-i18n="legend.scaleNote"></span></li>
+            <li><span class="swatch swatch-blue"></span><span data-i18n="legend.blueNote"></span></li>
+            <li><span class="swatch swatch-out"></span><span data-i18n="legend.outOfScale"></span></li>
+            <li><span class="swatch swatch-chord"></span><span data-i18n="legend.chordToneRoles"></span></li>
+          </ul>
+          <ul class="legend" id="legend-composer" data-i18n="aria-label:legendAria" hidden>
+            <li><span class="swatch swatch-root"></span><span data-i18n="legend.chordRoot"></span></li>
+            <li><span class="swatch swatch-chord"></span><span data-i18n="legend.chordTone"></span></li>
+            <li><span class="swatch swatch-scale"></span><span data-i18n="legend.scaleTone"></span></li>
+            <li><span class="swatch swatch-parent"></span><span data-i18n="legend.alsoFits"></span></li>
+            <li><span class="swatch swatch-blue"></span><span data-i18n="legend.blueNote"></span></li>
+            <li><span class="swatch swatch-avoid"></span><span data-i18n="legend.avoid"></span></li>
+            <li><span class="swatch swatch-guide"></span><span data-i18n="legend.guideTone"></span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="composer" class="composer" data-i18n="aria-label:composerSection" hidden>
+        <div id="transport"></div>
+        <div id="strip-toolbar" class="strip-toolbar"></div>
+        <div class="timeline" id="timeline">
+          <ol id="bars" class="bars"></ol>
+        </div>
+      </section>
+    </div>
 
     <aside id="chords" class="panel" aria-live="polite"></aside>
   </main>
