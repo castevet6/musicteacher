@@ -65,6 +65,32 @@ export function transposeLane(lane, semis) {
   return { notes: lane.notes.map((n) => ({ ...n, midi: n.midi + semis })) };
 }
 
+/** The notes of `lane` that start inside `[start, start + length)`, in order. */
+export const notesStarting = (lane, start, length) =>
+  lane.notes.filter((n) => n.start >= start && n.start < start + length);
+
+/** The shortest signed way from pitch class `from` to `to`, in semitones from -6 to 5. */
+export function transposeDistance(from, to) {
+  const up = (((to - from) % 12) + 12) % 12;
+  return up >= 6 ? up - 12 : up;
+}
+
+// ---------- Mix ----------
+
+export const LANES = ['chords', 'melody', 'bass'];
+export const MIX_STATES = ['on', 'mute', 'solo'];
+
+export const defaultMix = () => ({ chords: 'on', melody: 'on', bass: 'on' });
+
+/** Whether `lane` sounds: a solo on any lane silences the rest, otherwise mute decides. */
+export function isAudible(mix, lane) {
+  const anySolo = Object.values(mix).includes('solo');
+  return anySolo ? mix[lane] === 'solo' : mix[lane] !== 'mute';
+}
+
+/** Press mute or solo on `lane`: pressing the active one again returns the lane to 'on'. */
+export const toggleMix = (mix, lane, mode) => ({ ...mix, [lane]: mix[lane] === mode ? 'on' : mode });
+
 /** The ticks a slot from flattenSlots() covers: `{ start, length }`. */
 export function slotSpan(slot) {
   const half = slot.half * (TICKS_PER_BAR / 2);

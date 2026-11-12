@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CompositionError, TICKS_PER_BAR, TICKS_PER_BEAT, addNote, beatWeight, chordAtTick, clampLane, emptyLane,
   fileName, gridTicks, noteAt, parseComposition, removeNote, resizeNote, segmentWeight, segments,
-  serializeComposition, slotSpan, transposeLane,
+  serializeComposition, slotSpan, transposeLane, LANES, defaultMix, isAudible, notesStarting, toggleMix, transposeDistance,
 } from '../js/theory/composition.js';
 import { emptyProgression, flattenSlots, presetProgression, toggleSplit } from '../js/theory/progression.js';
 import { buildKey } from '../js/theory/scales.js';
@@ -155,4 +155,37 @@ test('parseComposition rejects every bad field and names it', () => {
   // An empty progression with empty lanes is a valid file.
   const empty = parseComposition(serializeComposition({ ...state(), progression: emptyProgression(1), melody: emptyLane(), bass: emptyLane() }));
   assert.equal(empty.progression.bars.length, 1);
+});
+
+test('notesStarting picks the notes that begin inside a span', () => {
+  const lane = { notes: [{ start: 0, length: 24, midi: 60 }, { start: 24, length: 24, midi: 62 }, { start: 48, length: 12, midi: 64 }] };
+  assert.deepEqual(notesStarting(lane, 0, 48).map((n) => n.midi), [60, 62]);
+  assert.deepEqual(notesStarting(lane, 24, 24).map((n) => n.midi), [62]);
+  assert.deepEqual(notesStarting(lane, 48, 48).map((n) => n.midi), [64]);
+  assert.deepEqual(notesStarting(lane, 96, 48), []);
+});
+
+test('transposeDistance takes the shorter way round', () => {
+  assert.equal(transposeDistance(0, 2), 2); // C → D
+  assert.equal(transposeDistance(0, 9), -3); // C → A
+  assert.equal(transposeDistance(9, 0), 3); // A → C
+  assert.equal(transposeDistance(0, 6), -6); // a tritone goes down
+  assert.equal(transposeDistance(0, 5), 5);
+  assert.equal(transposeDistance(7, 7), 0);
+});
+
+test('mix: solo wins over mute, pressing again releases', () => {
+  const mix = defaultMix();
+  assert.ok(LANES.every((lane) => isAudible(mix, lane)));
+  const muted = toggleMix(mix, 'chords', 'mute');
+  assert.equal(isAudible(muted, 'chords'), false);
+  assert.equal(isAudible(muted, 'melody'), true);
+  const solo = toggleMix(muted, 'melody', 'solo');
+  assert.deepEqual(LANES.map((lane) => isAudible(solo, lane)), [false, true, false]);
+  const twoSolos = toggleMix(solo, 'bass', 'solo');
+  assert.deepEqual(LANES.map((lane) => isAudible(twoSolos, lane)), [false, true, true]);
+  assert.deepEqual(toggleMix(solo, 'melody', 'solo'), { ...muted });
+  assert.deepEqual(toggleMix(muted, 'chords', 'mute'), mix);
+  // Solo on a muted lane replaces the mute.
+  assert.equal(toggleMix(muted, 'chords', 'solo').chords, 'solo');
 });

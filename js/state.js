@@ -1,5 +1,7 @@
 import { analyzeProgression, slotFocus } from './theory/analysis.js';
-import { addNote, clampLane, emptyLane, removeNote, resizeNote, slotAtTick } from './theory/composition.js';
+import {
+  addNote, clampLane, defaultMix, emptyLane, removeNote, resizeNote, slotAtTick, toggleMix, transposeDistance, transposeLane,
+} from './theory/composition.js';
 import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
@@ -9,6 +11,9 @@ import { suggestChords } from './theory/suggest.js';
 import { DEFAULT_LANG } from './theory/text/index.js';
 
 const listeners = new Set();
+
+// The playhead sits on a slot; `sounding` is the lane note under it, { midi, start } or null.
+const STOPPED = { playing: false, playhead: null, sounding: { melody: null, bass: null } };
 
 let state = derive({
   mode: 'explore', // 'explore' | 'composer'
@@ -27,7 +32,9 @@ let state = derive({
   melody: emptyLane(), // absolute MIDI notes in ticks; chords are relative, lanes are not
   bass: emptyLane(),
   selectedNote: null, // { lane: 'melody' | 'bass', start }
-  playback: { playing: false, bpm: 90, loop: true, click: true, playhead: null },
+  mix: defaultMix(), // per lane: 'on' | 'mute' | 'solo'
+  pendingTranspose: null, // { fromPc, semis }: the root moved while a lane had notes
+  playback: { playing: false, bpm: 90, loop: true, click: true, ...STOPPED },
 });
 
 function derive(next) {
@@ -63,7 +70,7 @@ export function subscribe(fn) {
 
 export function setMode(mode) {
   if (mode === state.mode) return;
-  update({ mode, selected: null, activeChord: null, selectedNote: null, playback: { ...state.playback, playing: false, playhead: null } });
+  update({ mode, selected: null, activeChord: null, selectedNote: null, playback: { ...state.playback, ...STOPPED } });
 }
 
 export const setLevel = (level) => update({ level });
@@ -76,8 +83,28 @@ export function setInstrument(instrument) {
   update({ instrument, selected, activeChord: null });
 }
 
-// The progression is stored relative to the tonic, so it follows the key.
-export const setRoot = (rootPc) => update({ rootPc, tonicLetter: null, selected: null, activeChord: null });
+// The progression is stored relative to the tonic, so it follows the key. The
+// lanes are absolute, so a new root offers to move them by the same distance,
+// measured from the root they were written in if a prompt is already open.
+export function setRoot(rootPc) {
+  const hasNotes = state.melody.notes.length + state.bass.notes.length > 0;
+  const fromPc = state.pendingTranspose?.fromPc ?? state.rootPc;
+  const semis = transposeDistance(fromPc, rootPc);
+  const pendingTranspose = hasNotes && semis !== 0 ? { fromPc, semis } : null;
+  update({ rootPc, tonicLetter: null, selected: null, activeChord: null, pendingTranspose });
+}
+
+export function confirmTranspose() {
+  const pending = state.pendingTranspose;
+  if (!pending) return;
+  const melody = transposeLane(state.melody, pending.semis);
+  const bass = transposeLane(state.bass, pending.semis);
+  const ref = state.selectedNote;
+  const note = ref && { melody, bass }[ref.lane].notes.find((n) => n.start === ref.start);
+  update({ melody, bass, pendingTranspose: null, ...(note ? noteFocus(note) : {}) });
+}
+
+export const dismissTranspose = () => update({ pendingTranspose: null });
 export function setScale(scaleId) {
   update({ scaleId, tonicLetter: state.key.tonic.letter, selected: null, activeChord: null });
 }
@@ -176,5 +203,23 @@ export function slotAfter(addr) {
 export const setTempo = (bpm) => updatePlayback({ bpm: Math.max(40, Math.min(200, Math.round(bpm) || 90)) });
 export const setLoop = (loop) => updatePlayback({ loop });
 export const setClick = (click) => updatePlayback({ click });
-export const setPlaying = (playing) => updatePlayback({ playing, playhead: playing ? { bar: 0, half: 0 } : null });
+export const toggleMute = (lane) => update({ mix: toggleMix(state.mix, lane, 'mute') });
+export const toggleSolo = (lane) => update({ mix: toggleMix(state.mix, lane, 'solo') });
+
+/** Start playing from slot `from` (the first slot by default), or stop. */
+export function setPlaying(playing, from = { bar: 0, half: 0 }) {
+  updatePlayback(playing ? { ...STOPPED, playing: true, playhead: from } : STOPPED);
+}
 export const setPlayhead = (playhead) => updatePlayback({ playhead });
+
+/**
+ * The transport reports a lane note starting (`note` = { midi, start }) or
+ * ending (`note` = null with `endedStart`). An end only clears the note it
+ * belongs to, so a note that follows straight on is not wiped by it.
+ */
+export function setSounding(lane, note, endedStart) {
+  const { playing, sounding } = state.playback;
+  if (!playing) return;
+  if (note === null && sounding[lane]?.start !== endedStart) return;
+  updatePlayback({ sounding: { ...sounding, [lane]: note } });
+}

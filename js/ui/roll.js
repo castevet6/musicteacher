@@ -14,7 +14,7 @@ const CENTER_MIDI = 60; // the roll opens with C4 in view
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
 export function createRoll(container, handlers) {
-  const { lane, range, onAdd, onRemove, onResize, onSelect, onAudition, onClear } = handlers;
+  const { lane, range, onAdd, onRemove, onResize, onSelect, onAudition, onClear, currentTick } = handlers;
 
   container.classList.add('roll');
   container.dataset.lane = lane;
@@ -42,6 +42,8 @@ export function createRoll(container, handlers) {
   let lastState = null;
   let scrolledTo = null;
   let drag = null;
+  let playhead = null; // the SVG line, redrawn with the grid
+  let frame = 0; // requestAnimationFrame id while playing
 
   function measure(state) {
     const css = getComputedStyle(container);
@@ -176,11 +178,14 @@ export function createRoll(container, handlers) {
 
     const notes = svgEl('g', { class: 'notes' }, frag);
     const selected = state.selectedNote;
+    const sounding = state.playback.sounding[lane];
     for (const note of state[lane].notes) {
       const x = xOf(note.start);
       const w = xEnd(note.start + note.length) - x;
       const isSelected = selected?.lane === lane && selected.start === note.start;
-      const g = svgEl('g', { class: `note${isSelected ? ' selected' : ''}`, 'data-start': note.start }, notes);
+      const isSounding = sounding?.start === note.start;
+      const classes = `note${isSelected ? ' selected' : ''}${isSounding ? ' sounding' : ''}`;
+      const g = svgEl('g', { class: classes, 'data-start': note.start }, notes);
       svgEl('rect', { class: 'note-body', x, y: yOf(note.midi) + 1, width: w, height: rowH - 2, rx: 3 }, g);
       if (w >= MIN_LABEL_WIDTH) {
         svgEl('text', { class: 'note-label', x: x + 4, y: yOf(note.midi) + rowH / 2 }, g)
@@ -189,7 +194,42 @@ export function createRoll(container, handlers) {
       svgEl('rect', { class: 'note-handle', x: x + w - 5, y: yOf(note.midi) + 1, width: 5, height: rowH - 2 }, g);
     }
 
+    playhead = svgEl('line', { class: 'playhead', x1: 0, x2: 0, y1: 0, y2: height, visibility: 'hidden' }, frag);
     svg.replaceChildren(frag);
+    movePlayhead();
+  }
+
+  /** Put the playhead line at the transport's tick, following it sideways when it leaves view. */
+  function movePlayhead() {
+    const tick = lastState?.playback.playing ? currentTick?.() : null;
+    if (!playhead) return;
+    if (tick == null) {
+      playhead.setAttribute('visibility', 'hidden');
+      return;
+    }
+    const x = xOf(tick);
+    playhead.setAttribute('x1', x);
+    playhead.setAttribute('x2', x);
+    playhead.removeAttribute('visibility');
+    if (scroller) {
+      const gutter = labels.offsetWidth;
+      const left = scroller.scrollLeft;
+      const visible = scroller.clientWidth - gutter;
+      if (x < left || x > left + visible - 2) scroller.scrollLeft = Math.max(0, x - 8);
+    }
+  }
+
+  function animate() {
+    movePlayhead();
+    frame = requestAnimationFrame(animate);
+  }
+
+  function followPlayback(state) {
+    if (state.playback.playing && !frame) frame = requestAnimationFrame(animate);
+    if (!state.playback.playing && frame) {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    }
   }
 
   function scrollIntoView(state) {
@@ -215,6 +255,7 @@ export function createRoll(container, handlers) {
       drawLabels(state);
       drawGrid(state);
       scrollIntoView(state);
+      followPlayback(state);
     },
   };
 }

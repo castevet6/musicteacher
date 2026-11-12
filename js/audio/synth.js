@@ -44,6 +44,50 @@ function voice(midi, start, level) {
   }
 }
 
+// Melody voices are tracked so Stop can cut a held note short.
+const leads = new Set();
+
+/**
+ * A melody note: a sawtooth through a low-pass filter, held for `duration`
+ * seconds from audio time `when` (now by default), then released.
+ */
+export function playLead(midi, { when, duration = 0.5 } = {}) {
+  const c = context();
+  const start = when ?? c.currentTime;
+  const end = start + Math.max(0.05, duration);
+  const freq = midiToFreq(midi);
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(0.9, start + 0.01);
+  env.gain.setTargetAtTime(0.55, start + 0.01, 0.15);
+  env.gain.setTargetAtTime(0, end, 0.03);
+  const filter = c.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = Math.min(freq * 6, 6000);
+  filter.Q.value = 0.7;
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.value = freq;
+  osc.connect(filter).connect(env).connect(master);
+  osc.start(start);
+  osc.stop(end + 0.2);
+  const lead = { env, osc };
+  leads.add(lead);
+  osc.onended = () => leads.delete(lead);
+}
+
+/** Cut every melody note that is sounding or scheduled; used by Stop. */
+export function stopLeads() {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  for (const { env, osc } of leads) {
+    env.gain.cancelScheduledValues(now);
+    env.gain.setTargetAtTime(0, now, 0.02);
+    osc.stop(now + 0.1);
+  }
+  leads.clear();
+}
+
 export function playNote(midi) {
   const c = context();
   voice(midi, c.currentTime, 1);

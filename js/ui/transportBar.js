@@ -1,10 +1,12 @@
-// Playback controls in Composer: play/stop, tempo, loop and click. The grid,
-// mix, title, style and file buttons join this bar in later milestones.
+// Playback controls in Composer: play/stop, tempo, loop, click, grid and the
+// per-lane mix. The title, style and file buttons join this bar in later milestones.
 
-import { GRIDS } from '../theory/composition.js';
+import { GRIDS, isAudible } from '../theory/composition.js';
 import { ui } from './strings.js';
 
-export function createTransportBar(container, { onPlay, onTempo, onLoop, onClickTrack, onGrid }) {
+const MIX_LANES = ['chords', 'melody']; // the bass lane arrives with the bass roll
+
+export function createTransportBar(container, { onPlay, onTempo, onLoop, onClickTrack, onGrid, onMute, onSolo }) {
   container.innerHTML = `
     <div class="transport" role="group" data-label="aria-label:group">
       <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
@@ -14,6 +16,14 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
       <label class="field"><span data-label="grid"></span>
         <select name="grid">${GRIDS.map((g) => `<option value="${g}">1/${g}</option>`).join('')}</select>
       </label>
+      <div class="mix" role="group" data-label="aria-label:mix">
+        ${MIX_LANES.map((lane) => `
+          <span class="mix-lane" data-lane="${lane}">
+            <span class="mix-name" data-label="lanes.${lane}"></span>
+            <button type="button" class="btn mix-btn" data-mix="mute" aria-pressed="false" data-label="mute"></button>
+            <button type="button" class="btn mix-btn" data-mix="solo" aria-pressed="false" data-label="solo"></button>
+          </span>`).join('')}
+      </div>
     </div>`;
 
   const $ = (selector) => container.querySelector(selector);
@@ -22,14 +32,22 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
   const loop = $('[name=loop]');
   const click = $('[name=click]');
   const grid = $('[name=grid]');
+  const mixLanes = [...container.querySelectorAll('.mix-lane')];
   let renderedLang = null;
+
+  const lookup = (text, path) => path.split('.').reduce((obj, key) => obj[key], text);
 
   function translate(lang) {
     const text = ui(lang).transport;
     for (const el of container.querySelectorAll('[data-label]')) {
       const [attr, id] = el.dataset.label.includes(':') ? el.dataset.label.split(':') : [null, el.dataset.label];
-      if (attr) el.setAttribute(attr, text[id]);
-      else el.textContent = text[id];
+      if (attr) el.setAttribute(attr, lookup(text, id));
+      else el.textContent = lookup(text, id);
+    }
+    for (const el of mixLanes) {
+      const name = text.lanes[el.dataset.lane];
+      el.querySelector('[data-mix=mute]').setAttribute('aria-label', text.muteLane(name));
+      el.querySelector('[data-mix=solo]').setAttribute('aria-label', text.soloLane(name));
     }
     renderedLang = lang;
   }
@@ -39,19 +57,31 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
   loop.addEventListener('change', () => onLoop(loop.checked));
   click.addEventListener('change', () => onClickTrack(click.checked));
   grid.addEventListener('change', () => onGrid(Number(grid.value)));
+  for (const el of mixLanes) {
+    el.querySelector('[data-mix=mute]').addEventListener('click', () => onMute(el.dataset.lane));
+    el.querySelector('[data-mix=solo]').addEventListener('click', () => onSolo(el.dataset.lane));
+  }
 
   return {
     render(state) {
       if (state.lang !== renderedLang) translate(state.lang);
       const text = ui(state.lang).transport;
       const { playing } = state.playback;
+      const from = state.selectedSlot;
       play.textContent = playing ? text.stop : text.play;
+      play.title = !playing && from ? text.playFrom(from.bar + 1) : '';
       play.setAttribute('aria-pressed', String(playing));
-      play.disabled = !playing && !state.slots.some((s) => s.chord);
+      play.disabled = !playing && !state.slots.some((s) => s.chord) && state.melody.notes.length === 0;
       if (document.activeElement !== bpm) bpm.value = String(state.playback.bpm);
       loop.checked = state.playback.loop;
       click.checked = state.playback.click;
       grid.value = String(state.grid);
+      for (const el of mixLanes) {
+        const lane = el.dataset.lane;
+        el.classList.toggle('silent', !isAudible(state.mix, lane));
+        el.querySelector('[data-mix=mute]').setAttribute('aria-pressed', String(state.mix[lane] === 'mute'));
+        el.querySelector('[data-mix=solo]').setAttribute('aria-pressed', String(state.mix[lane] === 'solo'));
+      }
     },
   };
 }

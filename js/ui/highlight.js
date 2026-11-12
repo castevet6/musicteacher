@@ -14,6 +14,9 @@ export function displayName(state, pc) {
   return prettyName(defaultSpelling(pc, key.accidentals), state.lang);
 }
 
+/** The MIDI notes the transport is sounding right now, lit on every matching position. */
+const soundingMidis = (state) => new Set(Object.values(state.playback.sounding).filter(Boolean).map((n) => n.midi));
+
 // Composer: classes for each tier from notesOverChord().
 const TIER_CLASSES = { chord: 'chord-tone', scale: 'tension', parent: 'parent-tone', avoid: 'avoid', blue: 'blue-note' };
 
@@ -21,6 +24,7 @@ const TIER_CLASSES = { chord: 'chord-tone', scale: 'tension', parent: 'parent-to
 function applyChordTiers(positions, state) {
   const { selected, focus } = state;
   const guide = new Set(focus.guideTones.map((m) => pcOf(m.from)));
+  const sounding = soundingMidis(state);
   for (const el of positions) {
     const pc = Number(el.dataset.pc);
     const midi = Number(el.dataset.midi);
@@ -37,6 +41,7 @@ function applyChordTiers(positions, state) {
     cl.toggle('muted', info.tier === 'outside');
     cl.toggle('selected', isSelectedPc && selected.midi === midi);
     cl.toggle('selected-pc', isSelectedPc && selected.midi !== midi);
+    cl.toggle('sounding', sounding.has(midi));
     el.dataset.tier = info.tier;
 
     const name = prettyName(info.note, state.lang);
@@ -60,6 +65,7 @@ export function applyHighlights(positions, state) {
   const { key, selected, activeChord } = state;
   const roles = new Map(activeChord?.tones.map((t) => [pcOf(t.note), t.role]) ?? []);
   const names = Array.from({ length: 12 }, (_, pc) => displayName(state, pc));
+  const sounding = soundingMidis(state);
 
   for (const el of positions) {
     const pc = Number(el.dataset.pc);
@@ -76,6 +82,7 @@ export function applyHighlights(positions, state) {
     cl.toggle('out-of-scale', isSelectedPc && !key.scalePcs.has(pc));
     cl.toggle('chord-tone', role !== undefined);
     cl.toggle('muted', Boolean(activeChord) && role === undefined);
+    cl.toggle('sounding', sounding.has(midi));
 
     el.querySelector('.label').textContent = names[pc];
     el.querySelector('.role').textContent = role ?? '';

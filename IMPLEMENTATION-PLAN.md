@@ -574,8 +574,8 @@ selectedNote: { lane, start } | null,
 showMap: true,
 instrumentCollapsed: false,
 mix: { chords: 'on' | 'mute' | 'solo', melody: ..., bass: ... },
-pendingTranspose: { semis } | null,         // set by setRoot when a lane has notes
-playback: { ..., playhead: { bar, half }, sounding: { melody: midi | null, bass: midi | null } },
+pendingTranspose: { fromPc, semis } | null,  // set by setRoot when a lane has notes; a second root change re-measures from fromPc
+playback: { ..., playhead: { bar, half }, sounding: { melody: { midi, start } | null, bass: ... } },
 history: Composition[]                       // undo snapshots, milestone 10
 ```
 
@@ -596,7 +596,7 @@ Derived: `melodyFit`, `bassFit`, `cellTiers`, `bassTiers`, `critique`, `bassCrit
 ### 10.11 Audio
 
 - `synth.js` gains `playLead(midi, { when, duration })` (sawtooth through a low-pass filter, slightly louder than the chord voice) and `playBass(midi, { when, duration })` (sine plus a triangle an octave up, low-passed). Notes stop at their length with a short release.
-- `transport.js` schedules per slot as now, and inside each slot also schedules every melody and bass note whose `start` falls in the slot's span, honouring `mix` (solo wins, then mute). Each note start also schedules `onSounding(lane, midi)` and its end `onSounding(lane, null)`. `transport.start(from)` starts at the selected slot. `transport.tick()` returns the current tick for the roll's playhead line, which the roll draws with `requestAnimationFrame` while playing.
+- `transport.js` schedules per slot as now, and inside each slot also schedules every melody and bass note whose `start` falls in the slot's span, honouring `mix` (`isAudible`: solo wins, then mute). Each note start also schedules `onSounding(lane, { midi, start })` and its end `onSounding(lane, null, start)`; an end only clears the note it belongs to, so a note that follows straight on is not wiped. `transport.start(from)` starts at the selected slot; `stop()` also cuts held lead notes (`stopLeads`). `transport.tick()` returns the current tick for the roll's playhead line, which the roll draws with `requestAnimationFrame` while playing, scrolling the timeline when the playhead leaves view.
 
 ### 10.12 Milestones
 

@@ -12,6 +12,7 @@ import { createComposerPanel } from './ui/composerPanel.js';
 import { createPiano } from './ui/piano.js';
 import { createRoll } from './ui/roll.js';
 import { createTransportBar } from './ui/transportBar.js';
+import { createTransposePrompt } from './ui/transposePrompt.js';
 
 const strum = () => store.getState().instrument === 'guitar';
 
@@ -30,6 +31,7 @@ function onChordClick(suggestion) {
 const transport = createTransport({
   getState: store.getState,
   onPlayhead: store.setPlayhead,
+  onSounding: store.setSounding,
   onEnd: () => store.setPlaying(false),
 });
 
@@ -43,8 +45,10 @@ function onPlay() {
     stopPlayback();
     return;
   }
-  store.setPlaying(true);
-  transport.start();
+  // Play from the selected bar, or from the top.
+  const from = store.getState().selectedSlot ?? { bar: 0, half: 0 };
+  store.setPlaying(true, from);
+  transport.start(from);
 }
 
 function onSelectSlot(addr, chord) {
@@ -94,6 +98,12 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
   onLoop: store.setLoop,
   onClickTrack: store.setClick,
   onGrid: store.setGrid,
+  onMute: store.toggleMute,
+  onSolo: store.toggleSolo,
+});
+const transposePrompt = createTransposePrompt(document.querySelector('#transpose-prompt'), {
+  onConfirm: store.confirmTranspose,
+  onDismiss: store.dismissTranspose,
 });
 // The melody roll shows the selected instrument's range (guitar E2–G5, piano C2–B5).
 const INSTRUMENT_RANGE = { guitar: [40, 79], piano: [36, 83] };
@@ -106,6 +116,7 @@ const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
   onSelect: (start) => store.selectLaneNote({ lane: 'melody', start }),
   onAudition: (midi) => midi != null && playNote(midi),
   onClear: () => store.clearLane('melody'),
+  currentTick: () => transport.tick(),
 });
 const panel = createChordPanel(document.querySelector('#chords'), { onChordClick });
 const composerPanel = createComposerPanel(document.querySelector('#chords'), { onPickChord, onNextChord });
@@ -131,6 +142,7 @@ store.subscribe((state) => {
   controls.render(state);
   composerSection.hidden = !composer;
   if (composer) {
+    transposePrompt.render(state);
     transportBar.render(state);
     strip.render(state);
     melodyRoll.render(state);

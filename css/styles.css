@@ -223,12 +223,14 @@ body {
 
 /* Composer: tiers over the chord in focus. */
 .pos.shown .dot, .pos.shown .label { opacity: 1; }
-.pos[data-tier="outside"]:not(.selected):not(.selected-pc) .dot,
-.pos[data-tier="outside"]:not(.selected):not(.selected-pc) .label { opacity: 0; }
+.pos[data-tier="outside"]:not(.selected):not(.selected-pc):not(.sounding) .dot,
+.pos[data-tier="outside"]:not(.selected):not(.selected-pc):not(.sounding) .label { opacity: 0; }
 .pos.tension .dot { fill: var(--tension); }
 .pos.parent-tone .dot { fill: var(--parent-tone); }
 .pos.avoid .dot { fill: var(--avoid); }
 .pos.guide-tone .dot { stroke: var(--guide); stroke-width: 3.5; }
+.pos.sounding .dot, .pos.sounding .label { opacity: 1; }
+.pos.sounding .dot { fill: var(--guide); stroke: var(--ring); stroke-width: 3; }
 .pos.tension .role, .pos.parent-tone .role { fill: var(--tension); }
 .pos.avoid .role { fill: var(--avoid); }
 .pos.blue-note .role { fill: var(--blue-note); }
@@ -413,6 +415,29 @@ body {
 /* ---------- Composer: transport, chord strip, timeline ---------- */
 
 .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 12px; }
+.mix { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.mix-lane { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.85rem; }
+.mix-name { margin-right: 2px; }
+.mix-lane.silent .mix-name { text-decoration: line-through; opacity: 0.7; }
+.mix-btn { min-width: 32px; min-height: 32px; padding: 2px 6px; font-size: 0.8rem; font-weight: 600; }
+.mix-btn[data-mix="mute"][aria-pressed="true"] { background: var(--muted); border-color: var(--muted); color: #fff; }
+.mix-btn[data-mix="solo"][aria-pressed="true"] { background: var(--guide); border-color: var(--guide); color: #111; }
+
+.prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 0.9rem;
+}
+.prompt[hidden] { display: none; }
+.prompt-text { flex: 1 1 240px; }
+.prompt .btn { min-height: 34px; padding: 4px 12px; margin-top: 0; }
 .strip-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px; }
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
 .bar-count { min-width: 4.5em; text-align: center; font-weight: 600; }
@@ -546,6 +571,9 @@ body {
 .roll .note.selected .note-body { stroke: var(--ring); stroke-width: 2; }
 .roll .note-label { fill: #fff; font-size: 10px; font-weight: 600; dominant-baseline: central; pointer-events: none; }
 .roll .note-handle { fill: transparent; cursor: ew-resize; }
+.roll .note.sounding .note-body { fill: var(--guide); stroke: var(--ring); stroke-width: 2; }
+.roll .note.sounding .note-label { fill: #111; }
+.roll .playhead { stroke: var(--root); stroke-width: 2; pointer-events: none; }
 
 /* ---------- Composer panel ---------- */
 
