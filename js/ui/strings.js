@@ -25,6 +25,7 @@ const en = {
     fitGood: 'Melody fits the chord',
     fitOk: 'Mostly fits',
     fitClash: 'Clashes',
+    ghost: 'Next-note idea (click to place)',
   },
   controls: {
     mode: 'Mode',
@@ -107,6 +108,7 @@ const en = {
     allGood: 'The melody raises no remarks.',
     remarkAt: (bar) => `bar ${bar}`,
     markerAria: (count) => `${count} remark${count === 1 ? '' : 's'}`,
+    nextNotes: (bar) => `Next note ideas (bar ${bar})`,
     hideInstrument: 'Hide instrument',
     showInstrument: 'Show instrument',
     transposeAsk: (from, to, semis) =>
@@ -162,6 +164,7 @@ const fi = {
     fitGood: 'Melodia sopii sointuun',
     fitOk: 'Sopii enimmäkseen',
     fitClash: 'Riitelee',
+    ghost: 'Seuraavan sävelen idea (napsauta sijoittaaksesi)',
   },
   controls: {
     mode: 'Tila',
@@ -244,6 +247,7 @@ const fi = {
     allGood: 'Melodiasta ei ole huomautettavaa.',
     remarkAt: (bar) => `tahti ${bar}`,
     markerAria: (count) => `${count} huomio${count === 1 ? '' : 'ta'}`,
+    nextNotes: (bar) => `Seuraavan sävelen ideoita (tahti ${bar})`,
     hideInstrument: 'Piilota soitin',
     showInstrument: 'Näytä soitin',
     transposeAsk: (from, to, semis) =>

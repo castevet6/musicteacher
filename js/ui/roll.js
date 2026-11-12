@@ -239,6 +239,23 @@ export function createRoll(container, handlers) {
       }
     }
 
+    // Ghosts: dashed next-note ideas after the selected or last note. They take
+    // no pointer events, so clicking one is the ordinary click on that cell.
+    const ghosts = state.ghosts;
+    if (ghosts?.lane === lane && ghosts.ghosts.length) {
+      const layer = svgEl('g', { class: 'ghosts' }, frag);
+      const gx = xOf(ghosts.tick);
+      const gw = xEnd(ghosts.tick + step) - gx;
+      ghosts.ghosts.forEach((ghost, i) => {
+        if (ghost.midi < low || ghost.midi > high) return;
+        const g = svgEl('g', { class: 'ghost', 'data-midi': ghost.midi, 'data-reason': ghost.reason, 'data-rank': i + 1 }, layer);
+        svgEl('rect', { class: 'ghost-body', x: gx + 1, y: yOf(ghost.midi) + 2, width: Math.max(4, gw - 2), height: rowH - 4, rx: 3 }, g);
+        if (gw >= MIN_LABEL_WIDTH) {
+          svgEl('text', { class: 'ghost-label', x: gx + 4, y: yOf(ghost.midi) + rowH / 2 }, g).textContent = displayName(state, ghost.midi % 12);
+        }
+      });
+    }
+
     playhead = svgEl('line', { class: 'playhead', x1: 0, x2: 0, y1: 0, y2: height, visibility: 'hidden' }, frag);
     svg.replaceChildren(frag);
     movePlayhead();

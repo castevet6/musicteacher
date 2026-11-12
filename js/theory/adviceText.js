@@ -16,3 +16,4 @@ export const guideToneText = (move, from, to, level, lang) => textFor(lang).guid
 export const noteOverChordText = (info, chord, level, lang) => textFor(lang).noteOverChordText(info, chord, level);
 export const critiqueName = (rule, level, lang) => textFor(lang).critiqueName(rule, level);
 export const critiqueText = (item, level, lang) => textFor(lang).critiqueText(item, level);
+export const ghostReasonText = (reason, level, lang) => textFor(lang).ghostReasonText(reason, level);

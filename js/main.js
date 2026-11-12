@@ -1,6 +1,7 @@
 import { playChord, playNote } from './audio/synth.js';
 import { createTransport } from './audio/transport.js';
 import * as store from './state.js';
+import { gridTicks } from './theory/composition.js';
 import { LANGS } from './theory/text/index.js';
 import { createChordPanel } from './ui/chordPanel.js';
 import { createControls } from './ui/controls.js';
@@ -135,6 +136,11 @@ const composerPanel = createComposerPanel(document.querySelector('#chords'), {
   onPickChord,
   onNextChord,
   onSelectNote: store.selectLaneNote,
+  onPlaceGhost: (ghost) => {
+    const { ghosts, grid } = store.getState();
+    store.addLaneNote('melody', { start: ghosts.tick, length: gridTicks(grid), midi: ghost.midi });
+    playNote(ghost.midi);
+  },
 });
 const legends = {
   explore: document.querySelector('#legend-explore'),

@@ -9,6 +9,7 @@ import {
 import { slotFitScore, fitLevel } from './theory/harmonize.js';
 import { critiqueLane } from './theory/melodyCritique.js';
 import { cellTiers, laneFit } from './theory/melodyFit.js';
+import { suggestNextNotes } from './theory/nextNote.js';
 import { buildKey } from './theory/scales.js';
 import { suggestChords } from './theory/suggest.js';
 import { DEFAULT_LANG } from './theory/text/index.js';
@@ -60,7 +61,10 @@ function derive(next) {
   const melodyFit = laneFit(key, slots, next.melody, analysis.chords);
   const slotFits = slots.map((slot) => (slot.chord ? fitLevel(slotFitScore(melodyFit, slot.index)) : null));
   const critique = critiqueLane(key, slots, next.melody, { style: next.style, level: next.level, grid: next.grid, fit: melodyFit });
-  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits, critique };
+  // Ghosts: next-note ideas after the selected melody note, or after the last one.
+  const after = selectedNote?.lane === 'melody' ? selectedNote.start : null;
+  const ghosts = { lane: 'melody', ...suggestNextNotes(key, slots, next.melody, after, { style: next.style, grid: next.grid }) };
+  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits, critique, ghosts };
 }
 
 function update(patch) {

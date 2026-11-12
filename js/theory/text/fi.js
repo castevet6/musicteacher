@@ -340,6 +340,16 @@ function critiqueText({ rule, data }, level) {
   }
 }
 
+// Seuraavan sävelen ideat: miksi sävel ehdotetaan.
+const GHOST_REASONS = {
+  resolves: { beginner: 'päästää jännitteen kotiin', intermediate: 'purkaa jännitteen' },
+  'chord-tone': { beginner: 'turvallinen: kuuluu sointuun', intermediate: 'soinnun sävel' },
+  step: { beginner: 'liikkuu yhden askeleen', intermediate: 'asteittain' },
+  'leap-to-chord-tone': { beginner: 'hyppää soinnun säveleen', intermediate: 'hyppy soinnun säveleen' },
+  'scale-tone': { beginner: 'kuuluu asteikkoon', intermediate: 'asteikon sävel' },
+};
+const ghostReasonText = (reason, level) => pick(level, GHOST_REASONS[reason] ?? { intermediate: reason });
+
 export const fi = {
   noteName: N,
   roleNames: ROLE_NAMES,
@@ -383,4 +393,5 @@ export const fi = {
   noteOverChordText,
   critiqueName,
   critiqueText,
+  ghostReasonText,
 };

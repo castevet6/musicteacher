@@ -300,6 +300,16 @@ function critiqueText({ rule, data }, level) {
   }
 }
 
+// Next-note ghosts: why a pitch is suggested.
+const GHOST_REASONS = {
+  resolves: { beginner: 'lets the tension go home', intermediate: 'resolves the tendency' },
+  'chord-tone': { beginner: 'safe: in the chord', intermediate: 'chord tone' },
+  step: { beginner: 'moves one step', intermediate: 'stepwise' },
+  'leap-to-chord-tone': { beginner: 'jumps to a chord note', intermediate: 'leap to a chord tone' },
+  'scale-tone': { beginner: 'in the scale', intermediate: 'scale tone' },
+};
+const ghostReasonText = (reason, level) => pick(level, GHOST_REASONS[reason] ?? { intermediate: reason });
+
 export const en = {
   noteName,
   roleNames: ROLE_NAMES,
@@ -350,4 +360,5 @@ export const en = {
   noteOverChordText,
   critiqueName,
   critiqueText,
+  ghostReasonText,
 };

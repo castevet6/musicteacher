@@ -4,8 +4,8 @@
 // A tab click overrides that until the selection changes.
 
 import {
-  adviceText, avoidReasonText, cadenceText, critiqueName, critiqueText, functionText, guideToneText, noteOverChordText,
-  reasonText, tierText,
+  adviceText, avoidReasonText, cadenceText, critiqueName, critiqueText, functionText, ghostReasonText, guideToneText,
+  noteOverChordText, reasonText, tierText,
 } from '../theory/adviceText.js';
 import { noteFit, noteTier } from '../theory/melodyFit.js';
 import { chordPalette } from '../theory/analysis.js';
@@ -14,6 +14,7 @@ import { LETTERS, prettyName } from '../theory/notes.js';
 import { sameAddress } from '../theory/progression.js';
 import { textFor } from '../theory/text/index.js';
 import { h, prettySymbol, prettyText } from './dom.js';
+import { displayName } from './highlight.js';
 import { ui } from './strings.js';
 
 const TIER_ORDER = ['chord', 'scale', 'parent', 'blue', 'avoid'];
@@ -24,7 +25,7 @@ const QUALITY_LABELS = {
 
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
-export function createComposerPanel(container, { onPickChord, onNextChord, onSelectNote }) {
+export function createComposerPanel(container, { onPickChord, onNextChord, onSelectNote, onPlaceGhost }) {
   // View-only UI state: which picker tab is shown and whether the picker is open.
   let activeTab = 'diatonic';
   let pickerOpen = false;
@@ -194,11 +195,30 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
       h('span', { class: 'remark-text' }, prettyText(critiqueText(item, level, lang)))));
   }
 
+  /** The next-note ideas as buttons; clicking one places that note. */
+  function ghostSection(state) {
+    const { level, lang, ghosts } = state;
+    const text = ui(lang).composer;
+    if (ghosts.lane !== 'melody' || !ghosts.ghosts.length) return null;
+    const bar = Math.floor(ghosts.tick / 48) + 1;
+    return h('section', { class: 'ghost-ideas' },
+      h('h3', {}, text.nextNotes(bar)),
+      h('div', { class: 'pick-grid' }, ghosts.ghosts.map((ghost) => h('button', {
+        type: 'button',
+        class: 'pick ghost-pick',
+        'data-id': `ghost-${ghost.midi}`,
+        'data-reason': ghost.reason,
+        onclick: () => onPlaceGhost(ghost),
+      },
+      h('span', { class: 'pick-symbol' }, `${displayName(state, ghost.midi % 12)}${octaveOf(ghost.midi)}`),
+      h('span', { class: 'pick-reason' }, ghostReasonText(ghost.reason, level, lang))))));
+  }
+
   function melodyTab(state) {
     const { level, lang, selectedNote } = state;
     const text = ui(lang).composer;
     const index = selectedNote?.lane === 'melody' ? state.melody.notes.findIndex((n) => n.start === selectedNote.start) : -1;
-    if (index < 0) return [h('h2', {}, text.melodyTitle), h('p', { class: 'hint' }, text.hintMelody)];
+    if (index < 0) return [h('h2', {}, text.melodyTitle), h('p', { class: 'hint' }, text.hintMelody), ghostSection(state)];
     const note = state.melody.notes[index];
     const entry = state.melodyFit[index];
     const tier = noteTier(entry);
@@ -221,6 +241,7 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
         remarks.length
           ? h('ul', { class: 'remark-list' }, remarks.map((it) => remarkItem(state, it)))
           : h('p', { class: 'hint' }, text.noRemarks)),
+      ghostSection(state),
     ];
   }
 

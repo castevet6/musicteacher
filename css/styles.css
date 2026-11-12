@@ -193,6 +193,7 @@ body {
 .swatch-parent { background: var(--parent-tone); }
 .swatch-avoid { background: var(--avoid); }
 .swatch-guide { background: transparent; box-shadow: inset 0 0 0 3px var(--guide); }
+.swatch-ghost { background: color-mix(in srgb, var(--accent) 18%, transparent); border: 1.5px dashed var(--accent); border-radius: 3px; }
 
 /* ---------- Note positions (shared by guitar and piano) ---------- */
 
@@ -604,6 +605,11 @@ body {
 .roll .note.sounding .note-body { fill: var(--guide); stroke: var(--ring); stroke-width: 2; }
 .roll .note.sounding .note-label, .roll .note.tier-parent .note-label { fill: #111; }
 .roll .playhead { stroke: var(--root); stroke-width: 2; pointer-events: none; }
+.roll .ghosts { pointer-events: none; }
+.roll .ghost-body { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.roll .ghost[data-rank="1"] .ghost-body { fill: color-mix(in srgb, var(--accent) 32%, transparent); }
+.roll .ghost-label { fill: var(--accent); font-size: 10px; font-weight: 600; dominant-baseline: central; }
+.ghost-pick { border-style: dashed; }
 
 /* ---------- Composer panel ---------- */
 
