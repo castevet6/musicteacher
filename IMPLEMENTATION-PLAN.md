@@ -415,7 +415,7 @@ Out of scope for this section: polyphony, triplets, sections and repeats, melody
 }
 ```
 
-`parseComposition` validates every field (unknown scale, quality, out-of-range midi, overlapping notes, more than 16 bars) and throws a message the UI shows; it never half-loads. The file name is the title slugged plus `.json`.
+`parseComposition` validates every field (unknown scale, quality, out-of-range midi, overlapping notes, more than 16 bars) and throws a `CompositionError` with `code` (`not-json`, `version`, `field`) and the `path` of the first bad field, which the UI words in both languages; it never half-loads. `fileName(title)` is the title slugged plus `.json`. `slotSpan(slot)` and `slotAtTick(slots, tick)` back `chordAtTick` and `segments`; `GRIDS` and `STYLES` are the allowed values.
 
 ### 10.3 Melody fit (`theory/melodyFit.js`)
 
