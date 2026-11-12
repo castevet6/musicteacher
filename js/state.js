@@ -6,7 +6,7 @@ import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
-import { slotFitScore, fitLevel } from './theory/harmonize.js';
+import { fitLevel, rankChords, slotFitScore } from './theory/harmonize.js';
 import { critiqueLane } from './theory/melodyCritique.js';
 import { cellTiers, laneFit } from './theory/melodyFit.js';
 import { suggestNextNotes } from './theory/nextNote.js';
@@ -64,7 +64,11 @@ function derive(next) {
   // Ghosts: next-note ideas after the selected melody note, or after the last one.
   const after = selectedNote?.lane === 'melody' ? selectedNote.start : null;
   const ghosts = { lane: 'melody', ...suggestNextNotes(key, slots, next.melody, after, { style: next.style, grid: next.grid }) };
-  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits, critique, ghosts };
+  // Chords for the melody inside the selected slot; null when the slot has no melody (the Chord tab's next-chord ideas cover that).
+  const sel = next.selectedSlot && slots.find((s) => sameAddress(s, next.selectedSlot));
+  const rankingList = sel ? rankChords(key, slots, next.melody, sel.index, { style: next.style, loop }) : [];
+  const ranking = rankingList.length && rankingList[0].fit !== null ? rankingList : null;
+  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits, critique, ghosts, ranking };
 }
 
 function update(patch) {

@@ -350,6 +350,17 @@ const GHOST_REASONS = {
 };
 const ghostReasonText = (reason, level) => pick(level, GHOST_REASONS[reason] ?? { intermediate: reason });
 
+// Sointujen järjestys: miksi sointua ehdotetaan tahdin melodialle.
+const RANK_REASONS = {
+  'fit-all': { beginner: 'sävelmä istuu suoraan sointuun', intermediate: 'kaikki melodian sävelet ovat soinnun säveliä' },
+  'fit-most': { beginner: 'suurin osa sävelmästä sopii', intermediate: 'melodia osuu enimmäkseen soinnun sävelille' },
+  cadence: { beginner: 'johtaa luontevasti naapuriinsa', intermediate: 'muodostaa kadenssin naapurinsa kanssa' },
+  primary: { beginner: 'yksi pääsoinnuista', intermediate: 'pääsointu' },
+  borrowed: { beginner: 'lainattua väriä', intermediate: 'lainattu rinnakkaissävellajista' },
+  secondary: { beginner: 'osoitinsointu', intermediate: 'välidominantti' },
+};
+const rankReasonText = (reason, level) => (RANK_REASONS[reason] ? pick(level, RANK_REASONS[reason]) : reasonText(reason, level));
+
 export const fi = {
   noteName: N,
   roleNames: ROLE_NAMES,
@@ -394,4 +405,5 @@ export const fi = {
   critiqueName,
   critiqueText,
   ghostReasonText,
+  rankReasonText,
 };

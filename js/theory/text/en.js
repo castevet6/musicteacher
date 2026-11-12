@@ -310,6 +310,17 @@ const GHOST_REASONS = {
 };
 const ghostReasonText = (reason, level) => pick(level, GHOST_REASONS[reason] ?? { intermediate: reason });
 
+// Chord ranking: why a chord is offered for the melody in a slot.
+const RANK_REASONS = {
+  'fit-all': { beginner: 'the tune sits right inside it', intermediate: 'every melody note is a chord tone' },
+  'fit-most': { beginner: 'most of the tune fits', intermediate: 'the melody mostly lands on chord tones' },
+  cadence: { beginner: 'leads nicely to its neighbour', intermediate: 'forms a cadence with its neighbour' },
+  primary: { beginner: 'one of the main chords', intermediate: 'primary chord' },
+  borrowed: { beginner: 'borrowed colour', intermediate: 'borrowed from the parallel key' },
+  secondary: { beginner: 'a pointer chord', intermediate: 'secondary dominant' },
+};
+const rankReasonText = (reason, level) => (RANK_REASONS[reason] ? pick(level, RANK_REASONS[reason]) : reasonText(reason, level));
+
 export const en = {
   noteName,
   roleNames: ROLE_NAMES,
@@ -361,4 +372,5 @@ export const en = {
   critiqueName,
   critiqueText,
   ghostReasonText,
+  rankReasonText,
 };

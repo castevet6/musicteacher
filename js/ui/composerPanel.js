@@ -5,8 +5,9 @@
 
 import {
   adviceText, avoidReasonText, cadenceText, critiqueName, critiqueText, functionText, ghostReasonText, guideToneText,
-  noteOverChordText, reasonText, tierText,
+  noteOverChordText, rankReasonText, reasonText, tierText,
 } from '../theory/adviceText.js';
+import { fitLevel } from '../theory/harmonize.js';
 import { noteFit, noteTier } from '../theory/melodyFit.js';
 import { chordPalette } from '../theory/analysis.js';
 import { CHORD_QUALITIES, buildChord } from '../theory/chords.js';
@@ -109,6 +110,34 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
         h('ul', {}, focus.guideTones.map((move) => h('li', {}, prettyText(guideToneText(move, focus.chord, focus.nextChord, level, lang)))))));
   }
 
+  const RANKING_SHOWN = 8;
+
+  /** Chords ranked for the melody inside the selected slot; picking one fills the slot. */
+  function rankingSection(state, slot) {
+    const { ranking, level, lang } = state;
+    const text = ui(lang).composer;
+    if (!ranking) return null;
+    const addr = { bar: slot.bar, half: slot.half };
+    const strip = ui(lang).strip;
+    return h('section', { class: 'ranking' },
+      h('h3', {}, text.ranking),
+      h('div', { class: 'pick-grid' }, ranking.slice(0, RANKING_SHOWN).map((r) => {
+        const fit = fitLevel(r.fit);
+        return h('button', {
+          type: 'button',
+          class: 'pick rank-pick',
+          'data-id': `rank-${r.chord.symbol}`,
+          'data-fit': fit,
+          'aria-pressed': String(slot.chord?.symbol === r.chord.symbol),
+          'aria-label': `${prettySymbol(r.chord, lang)}, ${strip.fit[fit]}`,
+          onclick: () => onPickChord(addr, r.chord),
+        },
+        h('span', { class: 'pick-symbol' }, h('span', { class: 'fit-dot', 'data-fit': fit }), prettySymbol(r.chord, lang)),
+        h('span', { class: 'pick-roman' }, prettyText(r.roman)),
+        h('span', { class: 'pick-reason' }, r.reasons.map((reason) => rankReasonText(reason, level, lang)).join(', ')));
+      })));
+  }
+
   function nextSection(state) {
     const { focus, level, lang } = state;
     const text = ui(lang).composer;
@@ -173,6 +202,7 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
         analysis?.function && h('span', { class: 'tag function-tag', 'data-function': analysis.function }, textFor(lang).functionNames[analysis.function]),
         h('span', { class: 'bar-label' }, where)),
       analysis && h('p', { class: 'function-text' }, prettyText(functionText(analysis, state.key, level, lang))),
+      editable && rankingSection(state, slot),
       editable && picker(state, slot),
       chord && notesSection(state),
       nextSection(state),

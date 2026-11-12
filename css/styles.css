@@ -610,6 +610,9 @@ body {
 .roll .ghost[data-rank="1"] .ghost-body { fill: color-mix(in srgb, var(--accent) 32%, transparent); }
 .roll .ghost-label { fill: var(--accent); font-size: 10px; font-weight: 600; dominant-baseline: central; }
 .ghost-pick { border-style: dashed; }
+.rank-pick .pick-symbol { display: inline-flex; align-items: center; gap: 5px; }
+.rank-pick .fit-dot { position: static; flex: none; }
+.rank-pick[data-fit="clash"] { opacity: 0.7; }
 
 /* ---------- Composer panel ---------- */
 
@@ -687,7 +690,7 @@ body {
 .pick-symbol { font-weight: 700; }
 .pick-roman { font-family: Georgia, "Times New Roman", serif; color: var(--muted); font-size: 0.85rem; }
 .pick-reason { color: var(--muted); font-size: 0.75rem; }
-.next .pick-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.next .pick-grid, .ranking .pick-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 
 .custom-picker { display: flex; flex-wrap: wrap; gap: 6px; }
 .custom-picker select {

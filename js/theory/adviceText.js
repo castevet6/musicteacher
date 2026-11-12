@@ -17,3 +17,4 @@ export const noteOverChordText = (info, chord, level, lang) => textFor(lang).not
 export const critiqueName = (rule, level, lang) => textFor(lang).critiqueName(rule, level);
 export const critiqueText = (item, level, lang) => textFor(lang).critiqueText(item, level);
 export const ghostReasonText = (reason, level, lang) => textFor(lang).ghostReasonText(reason, level);
+export const rankReasonText = (reason, level, lang) => textFor(lang).rankReasonText(reason, level);

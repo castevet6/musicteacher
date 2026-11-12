@@ -109,6 +109,7 @@ const en = {
     remarkAt: (bar) => `bar ${bar}`,
     markerAria: (count) => `${count} remark${count === 1 ? '' : 's'}`,
     nextNotes: (bar) => `Next note ideas (bar ${bar})`,
+    ranking: 'Chords for this melody',
     hideInstrument: 'Hide instrument',
     showInstrument: 'Show instrument',
     transposeAsk: (from, to, semis) =>
@@ -248,6 +249,7 @@ const fi = {
     remarkAt: (bar) => `tahti ${bar}`,
     markerAria: (count) => `${count} huomio${count === 1 ? '' : 'ta'}`,
     nextNotes: (bar) => `Seuraavan sävelen ideoita (tahti ${bar})`,
+    ranking: 'Sointuja tälle melodialle',
     hideInstrument: 'Piilota soitin',
     showInstrument: 'Näytä soitin',
     transposeAsk: (from, to, semis) =>
