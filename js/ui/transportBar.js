@@ -6,10 +6,11 @@ import { ui } from './strings.js';
 
 const MIX_LANES = ['chords', 'melody']; // the bass lane arrives with the bass roll
 
-export function createTransportBar(container, { onPlay, onTempo, onLoop, onClickTrack, onGrid, onMute, onSolo }) {
+export function createTransportBar(container, { onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onMute, onSolo }) {
   container.innerHTML = `
     <div class="transport" role="group" data-label="aria-label:group">
       <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
+      <button type="button" class="btn play-from" data-act="play-from" hidden></button>
       <label class="field"><span data-label="bpm"></span> <input type="number" name="bpm" min="40" max="200" step="1" inputmode="numeric"></label>
       <label class="check"><input type="checkbox" name="loop"> <span data-label="loop"></span></label>
       <label class="check"><input type="checkbox" name="click"> <span data-label="click"></span></label>
@@ -28,6 +29,7 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
 
   const $ = (selector) => container.querySelector(selector);
   const play = $('[data-act=play]');
+  const playFrom = $('[data-act=play-from]');
   const bpm = $('[name=bpm]');
   const loop = $('[name=loop]');
   const click = $('[name=click]');
@@ -53,6 +55,7 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
   }
 
   play.addEventListener('click', onPlay);
+  playFrom.addEventListener('click', onPlayFrom);
   bpm.addEventListener('change', () => onTempo(Number(bpm.value)));
   loop.addEventListener('change', () => onLoop(loop.checked));
   click.addEventListener('change', () => onClickTrack(click.checked));
@@ -68,10 +71,16 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
       const text = ui(state.lang).transport;
       const { playing } = state.playback;
       const from = state.selectedSlot;
+      const nothing = !state.slots.some((s) => s.chord) && state.melody.notes.length === 0;
       play.textContent = playing ? text.stop : text.play;
-      play.title = !playing && from ? text.playFrom(from.bar + 1) : '';
       play.setAttribute('aria-pressed', String(playing));
-      play.disabled = !playing && !state.slots.some((s) => s.chord) && state.melody.notes.length === 0;
+      play.disabled = !playing && nothing;
+      // Play always starts at bar 1; a selected bar offers its own start button.
+      playFrom.hidden = playing || !from || from.bar === 0 || nothing;
+      if (from) {
+        playFrom.textContent = text.fromBar(from.bar + 1);
+        playFrom.setAttribute('aria-label', text.playFrom(from.bar + 1));
+      }
       if (document.activeElement !== bpm) bpm.value = String(state.playback.bpm);
       loop.checked = state.playback.loop;
       click.checked = state.playback.click;

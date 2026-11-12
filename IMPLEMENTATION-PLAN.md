@@ -388,7 +388,7 @@ Composer replaces Progression mode. The header toggle is **Explore** | **Compose
 | Assistance | Melody: fit map, six critique rules, next-note ghosts. Harmony: per-slot chord ranking, fit dot on filled slots, key guess on demand. Bass: fit map with root emphasis, style patterns, critique against the melody, ghosts. No generation. |
 | Styles | `pop` (default), `jazz`, `folk`. A style changes ranking weights, critique thresholds and bass patterns, never the chord vocabulary. |
 | Level | Beginner shows critique rules 1, 3 and 5 and the short texts; intermediate shows all six with their names. |
-| Playback | Chords, melody and bass through the transport, separate timbre per lane, mute and solo per lane, play from the selected slot, loop toggle kept. The playhead lights the sounding melody note on the instrument (every guitar position). |
+| Playback | Chords, melody and bass through the transport, separate timbre per lane, mute and solo per lane, Play always starts at bar 1 and a selected bar adds a "▶ Bar N" button that starts there (decided after milestone 4: starting Play at the selected bar surprised the user), loop toggle kept. The playhead lights the sounding melody note on the instrument (every guitar position). |
 | Instrument clicks | Play the note and highlight its roll row. Nothing is placed. |
 | Panel | Content follows the selection (slot → chord tools, note → melody or bass tools, nothing → piece overview), with a tab bar as override. |
 | Files | JSON export and import with title, version, key, style, bpm, chords, melody, bass. Editable title becomes the file name. Import confirms before replacing a non-empty composition. No localStorage, no MIDI. URL sharing later. |

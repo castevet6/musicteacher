@@ -397,6 +397,8 @@ body {
 .btn.subtle { margin-top: 10px; color: var(--muted); }
 .btn.play { min-width: 96px; font-weight: 600; }
 .btn.play[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.play-from { font-weight: 600; color: var(--accent); }
+.btn.play-from[hidden] { display: none; }
 
 .check { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }

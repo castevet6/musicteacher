@@ -40,13 +40,22 @@ function stopPlayback() {
   if (store.getState().playback.playing) store.setPlaying(false);
 }
 
+/** Play toggles playback from bar 1; the "from bar N" button starts at the selected bar. */
 function onPlay() {
   if (store.getState().playback.playing) {
     stopPlayback();
     return;
   }
-  // Play from the selected bar, or from the top.
-  const from = store.getState().selectedSlot ?? { bar: 0, half: 0 };
+  startPlayback({ bar: 0, half: 0 });
+}
+
+function onPlayFrom() {
+  const from = store.getState().selectedSlot;
+  if (from) startPlayback({ bar: from.bar, half: 0 });
+}
+
+function startPlayback(from) {
+  stopPlayback();
   store.setPlaying(true, from);
   transport.start(from);
 }
@@ -94,6 +103,7 @@ const strip = createChordStrip({ toolbar: document.querySelector('#strip-toolbar
 });
 const transportBar = createTransportBar(document.querySelector('#transport'), {
   onPlay,
+  onPlayFrom,
   onTempo: store.setTempo,
   onLoop: store.setLoop,
   onClickTrack: store.setClick,
