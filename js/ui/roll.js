@@ -1,0 +1,220 @@
+// A piano roll for one lane (melody or bass): rows are pitches, columns are
+// grid cells inside bars laid out at --bar-width, so the roll lines up with the
+// chord strip above it in the same horizontal scroller. Click a cell to add a
+// note, drag to lengthen it, click a note to select it, click again to delete.
+
+import { TICKS_PER_BAR, TICKS_PER_BEAT, gridTicks, noteAt } from '../theory/composition.js';
+import { h } from './dom.js';
+import { SVG_NS, displayName, svgEl } from './highlight.js';
+import { ui } from './strings.js';
+
+const MIN_LABEL_WIDTH = 22;
+const CENTER_MIDI = 60; // the roll opens with C4 in view
+
+const octaveOf = (midi) => Math.floor(midi / 12) - 1;
+
+export function createRoll(container, handlers) {
+  const { lane, range, onAdd, onRemove, onResize, onSelect, onAudition, onClear } = handlers;
+
+  container.classList.add('roll');
+  container.dataset.lane = lane;
+  const head = h('div', { class: 'roll-head' },
+    h('span', { class: 'roll-title' }),
+    h('span', { class: 'roll-hint' }),
+    h('button', { type: 'button', class: 'btn subtle roll-clear', onclick: onClear }));
+  const labels = h('div', { class: 'roll-labels' });
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.classList.add('roll-svg');
+  svg.setAttribute('tabindex', '0'); // so Delete and Backspace reach the selected note
+  const body = h('div', { class: 'roll-body' }, labels, svg);
+  container.append(head, body);
+
+  // The head is sticky in the timeline; the labels sit inside the vertical
+  // scroller, so they follow the sideways scroll by hand.
+  const scroller = container.closest('.timeline');
+  scroller?.addEventListener('scroll', () => {
+    labels.style.transform = `translateX(${scroller.scrollLeft}px)`;
+  }, { passive: true });
+  const fitHead = () => { if (scroller) head.style.width = `${scroller.clientWidth}px`; };
+  window.addEventListener('resize', fitHead);
+
+  let geometry = null; // { barW, gap, rowH, low, high, bars }
+  let lastState = null;
+  let scrolledTo = null;
+  let drag = null;
+
+  function measure(state) {
+    const css = getComputedStyle(container);
+    const barW = parseFloat(css.getPropertyValue('--bar-width')) || 150;
+    const gap = parseFloat(css.getPropertyValue('--bar-gap')) || 8;
+    const rowH = parseFloat(css.getPropertyValue('--roll-row')) || 16;
+    const [rangeLow, rangeHigh] = range(state);
+    const midis = state[lane].notes.map((n) => n.midi);
+    const low = Math.min(rangeLow, ...midis);
+    const high = Math.max(rangeHigh, ...midis);
+    return { barW, gap, rowH, low, high, rangeLow, rangeHigh, bars: state.progression.bars.length };
+  }
+
+  const xOf = (tick) => {
+    const { barW, gap } = geometry;
+    const bar = Math.floor(tick / TICKS_PER_BAR);
+    return bar * (barW + gap) + ((tick % TICKS_PER_BAR) / TICKS_PER_BAR) * barW;
+  };
+  /** The x where a note ending at `tick` stops: a bar's end, not the start of the next bar. */
+  const xEnd = (tick) => (tick > 0 && tick % TICKS_PER_BAR === 0 ? xOf(tick - TICKS_PER_BAR) + geometry.barW : xOf(tick));
+  const yOf = (midi) => (geometry.high - midi) * geometry.rowH;
+
+  /** The tick and midi under a pointer event, or null outside the bars. */
+  function locate(event) {
+    const rect = svg.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const { barW, gap, rowH, bars, high, low } = geometry;
+    const bar = Math.min(bars - 1, Math.max(0, Math.floor(x / (barW + gap))));
+    const within = Math.min(barW, Math.max(0, x - bar * (barW + gap)));
+    const tick = bar * TICKS_PER_BAR + (within / barW) * TICKS_PER_BAR;
+    const midi = high - Math.floor(y / rowH);
+    if (midi < low || midi > high) return null;
+    return { tick, midi };
+  }
+
+  const snap = (tick, grid) => Math.floor(tick / gridTicks(grid)) * gridTicks(grid);
+
+  svg.addEventListener('pointerdown', (event) => {
+    if (!lastState || event.button !== 0) return;
+    const at = locate(event);
+    if (!at) return;
+    const step = gridTicks(lastState.grid);
+    const under = noteAt(lastState[lane], at.tick);
+    const existing = under && under.midi === at.midi ? under : null; // another row means a new note
+    svg.setPointerCapture(event.pointerId);
+    svg.focus({ preventScroll: true });
+    if (existing) {
+      drag = { start: existing.start, length: existing.length, existing: true, moved: false };
+    } else {
+      const start = Math.min(snap(at.tick, lastState.grid), geometry.bars * TICKS_PER_BAR - step);
+      onAdd({ start, length: step, midi: at.midi });
+      onAudition(at.midi);
+      drag = { start, length: step, existing: false, moved: false };
+    }
+    event.preventDefault();
+  });
+
+  svg.addEventListener('pointermove', (event) => {
+    if (!drag || !lastState) return;
+    const at = locate(event);
+    if (!at) return;
+    const step = gridTicks(lastState.grid);
+    const length = Math.max(step, snap(at.tick, lastState.grid) + step - drag.start);
+    if (length !== drag.length) {
+      drag.length = length;
+      drag.moved = true;
+      onResize(drag.start, length);
+    }
+  });
+
+  function endDrag() {
+    if (!drag) return;
+    const { start, existing, moved } = drag;
+    drag = null;
+    if (!existing || moved) return;
+    const selected = lastState.selectedNote;
+    if (selected && selected.lane === lane && selected.start === start) onRemove(start);
+    else {
+      onSelect(start);
+      onAudition(noteAt(lastState[lane], start)?.midi);
+    }
+  }
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', () => { drag = null; });
+
+  function rowClass(state, midi) {
+    const pc = midi % 12;
+    const classes = [];
+    if (midi < geometry.rangeLow || midi > geometry.rangeHigh) classes.push('out-of-range');
+    else if (!state.key.scalePcs.has(pc)) classes.push('out');
+    if (pc === state.key.rootPc) classes.push('tonic');
+    if (state.selected?.midi === midi) classes.push('highlight');
+    return classes.join(' ');
+  }
+
+  function drawLabels(state) {
+    const rows = [];
+    for (let midi = geometry.high; midi >= geometry.low; midi--) {
+      rows.push(h('div', { class: `roll-label ${rowClass(state, midi)}`, 'data-midi': midi },
+        `${displayName(state, midi % 12)}${octaveOf(midi)}`));
+    }
+    labels.replaceChildren(...rows);
+  }
+
+  function drawGrid(state) {
+    const { barW, gap, rowH, low, high, bars } = geometry;
+    const rows = high - low + 1;
+    const width = bars * barW + (bars - 1) * gap;
+    const height = rows * rowH;
+    svg.setAttribute('width', width);
+    svg.setAttribute('height', height);
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const frag = document.createDocumentFragment();
+
+    const rowsG = svgEl('g', { class: 'rows' }, frag);
+    for (let midi = high; midi >= low; midi--) {
+      svgEl('rect', { class: `row ${rowClass(state, midi)}`, x: 0, y: yOf(midi), width, height: rowH, 'data-midi': midi }, rowsG);
+    }
+
+    const lines = svgEl('g', { class: 'lines' }, frag);
+    const step = gridTicks(state.grid);
+    for (let bar = 0; bar < bars; bar++) {
+      const x0 = bar * (barW + gap);
+      if (bar > 0) svgEl('rect', { class: 'bar-gap', x: x0 - gap, y: 0, width: gap, height }, lines);
+      for (let tick = 0; tick <= TICKS_PER_BAR; tick += step) {
+        const x = x0 + (tick / TICKS_PER_BAR) * barW;
+        const kind = tick % TICKS_PER_BAR === 0 ? 'bar-line' : tick % TICKS_PER_BEAT === 0 ? 'beat-line' : 'cell-line';
+        svgEl('line', { class: kind, x1: x, x2: x, y1: 0, y2: height }, lines);
+      }
+    }
+
+    const notes = svgEl('g', { class: 'notes' }, frag);
+    const selected = state.selectedNote;
+    for (const note of state[lane].notes) {
+      const x = xOf(note.start);
+      const w = xEnd(note.start + note.length) - x;
+      const isSelected = selected?.lane === lane && selected.start === note.start;
+      const g = svgEl('g', { class: `note${isSelected ? ' selected' : ''}`, 'data-start': note.start }, notes);
+      svgEl('rect', { class: 'note-body', x, y: yOf(note.midi) + 1, width: w, height: rowH - 2, rx: 3 }, g);
+      if (w >= MIN_LABEL_WIDTH) {
+        svgEl('text', { class: 'note-label', x: x + 4, y: yOf(note.midi) + rowH / 2 }, g)
+          .textContent = displayName(state, note.midi % 12);
+      }
+      svgEl('rect', { class: 'note-handle', x: x + w - 5, y: yOf(note.midi) + 1, width: 5, height: rowH - 2 }, g);
+    }
+
+    svg.replaceChildren(frag);
+  }
+
+  function scrollIntoView(state) {
+    const key = `${geometry.low}-${geometry.high}-${state.instrument}`;
+    if (scrolledTo === key) return;
+    scrolledTo = key;
+    body.scrollTop = Math.max(0, yOf(CENTER_MIDI) - body.clientHeight / 2);
+  }
+
+  return {
+    render(state) {
+      lastState = state;
+      geometry = measure(state);
+      fitHead();
+      const text = ui(state.lang).roll;
+      head.querySelector('.roll-title').textContent = text.lane[lane];
+      head.querySelector('.roll-hint').textContent = text.hint;
+      const clear = head.querySelector('.roll-clear');
+      clear.textContent = text.clear;
+      clear.setAttribute('aria-label', text.clearLane(text.lane[lane]));
+      clear.disabled = state[lane].notes.length === 0;
+      svg.setAttribute('aria-label', text.rollAria(text.lane[lane]));
+      drawLabels(state);
+      drawGrid(state);
+      scrollIntoView(state);
+    },
+  };
+}

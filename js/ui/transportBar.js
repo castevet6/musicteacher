@@ -1,15 +1,19 @@
 // Playback controls in Composer: play/stop, tempo, loop and click. The grid,
 // mix, title, style and file buttons join this bar in later milestones.
 
+import { GRIDS } from '../theory/composition.js';
 import { ui } from './strings.js';
 
-export function createTransportBar(container, { onPlay, onTempo, onLoop, onClickTrack }) {
+export function createTransportBar(container, { onPlay, onTempo, onLoop, onClickTrack, onGrid }) {
   container.innerHTML = `
     <div class="transport" role="group" data-label="aria-label:group">
       <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
       <label class="field"><span data-label="bpm"></span> <input type="number" name="bpm" min="40" max="200" step="1" inputmode="numeric"></label>
       <label class="check"><input type="checkbox" name="loop"> <span data-label="loop"></span></label>
       <label class="check"><input type="checkbox" name="click"> <span data-label="click"></span></label>
+      <label class="field"><span data-label="grid"></span>
+        <select name="grid">${GRIDS.map((g) => `<option value="${g}">1/${g}</option>`).join('')}</select>
+      </label>
     </div>`;
 
   const $ = (selector) => container.querySelector(selector);
@@ -17,6 +21,7 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
   const bpm = $('[name=bpm]');
   const loop = $('[name=loop]');
   const click = $('[name=click]');
+  const grid = $('[name=grid]');
   let renderedLang = null;
 
   function translate(lang) {
@@ -33,6 +38,7 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
   bpm.addEventListener('change', () => onTempo(Number(bpm.value)));
   loop.addEventListener('change', () => onLoop(loop.checked));
   click.addEventListener('change', () => onClickTrack(click.checked));
+  grid.addEventListener('change', () => onGrid(Number(grid.value)));
 
   return {
     render(state) {
@@ -45,6 +51,7 @@ export function createTransportBar(container, { onPlay, onTempo, onLoop, onClick
       if (document.activeElement !== bpm) bpm.value = String(state.playback.bpm);
       loop.checked = state.playback.loop;
       click.checked = state.playback.click;
+      grid.value = String(state.grid);
     },
   };
 }

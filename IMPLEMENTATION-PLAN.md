@@ -382,7 +382,7 @@ Composer replaces Progression mode. The header toggle is **Explore** | **Compose
 | Modes | Explore and Composer. Progression mode's features move into Composer and the mode id `'progression'` disappears. |
 | Time | 4/4 only, 1–16 bars (`MAX_BARS`), one linear loop. Grid of 1/4, 1/8 or 1/16. No triplets, no swing. Changing the grid never moves or deletes notes. |
 | Lanes | Melody and bass, each monophonic, each its own roll. Chords stay in the strip. |
-| Entry | Draw on the roll only. Click adds a note one grid step long and auditions it, clicking a note deletes it, dragging its right edge lengthens it, a note placed over an existing one replaces it. No step entry, no typing, no MIDI input. |
+| Entry | Draw on the roll only. Click adds a note one grid step long and auditions it, dragging on from the click lengthens it, a note placed over an existing one replaces it. Clicking a note selects it (and focuses the chord under it); a second click or the Delete key removes it. No step entry, no typing, no MIDI input. |
 | Pitch storage | Melody and bass are absolute MIDI notes. Chords stay relative to the key. Moving the root picker offers a one-click transpose of the lanes; a key chosen from the key guess never transposes. A scale change never transposes. |
 | Roll range | The selected instrument's range (guitar E2–G5, piano C2–B5), vertical scroll opening around C4. Bass roll E1–G3 regardless of instrument. Notes outside the range extend the roll and are drawn in the out-of-range style. |
 | Assistance | Melody: fit map, six critique rules, next-note ghosts. Harmony: per-slot chord ranking, fit dot on filled slots, key guess on demand. Bass: fit map with root emphasis, style patterns, critique against the melody, ghosts. No generation. |

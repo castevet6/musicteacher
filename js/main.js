@@ -10,6 +10,7 @@ import { ui } from './ui/strings.js';
 import { createChordStrip } from './ui/chordStrip.js';
 import { createComposerPanel } from './ui/composerPanel.js';
 import { createPiano } from './ui/piano.js';
+import { createRoll } from './ui/roll.js';
 import { createTransportBar } from './ui/transportBar.js';
 
 const strum = () => store.getState().instrument === 'guitar';
@@ -92,6 +93,19 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
   onTempo: store.setTempo,
   onLoop: store.setLoop,
   onClickTrack: store.setClick,
+  onGrid: store.setGrid,
+});
+// The melody roll shows the selected instrument's range (guitar E2–G5, piano C2–B5).
+const INSTRUMENT_RANGE = { guitar: [40, 79], piano: [36, 83] };
+const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
+  lane: 'melody',
+  range: (state) => INSTRUMENT_RANGE[state.instrument],
+  onAdd: (note) => store.addLaneNote('melody', note),
+  onRemove: (start) => store.removeLaneNote('melody', start),
+  onResize: (start, length) => store.resizeLaneNote('melody', start, length),
+  onSelect: (start) => store.selectLaneNote({ lane: 'melody', start }),
+  onAudition: (midi) => midi != null && playNote(midi),
+  onClear: () => store.clearLane('melody'),
 });
 const panel = createChordPanel(document.querySelector('#chords'), { onChordClick });
 const composerPanel = createComposerPanel(document.querySelector('#chords'), { onPickChord, onNextChord });
@@ -119,6 +133,7 @@ store.subscribe((state) => {
   if (composer) {
     transportBar.render(state);
     strip.render(state);
+    melodyRoll.render(state);
   }
   const collapsed = composer && state.instrumentCollapsed;
   instrumentHead.hidden = !composer;
@@ -135,4 +150,10 @@ store.subscribe((state) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') store.clearSelection();
+  const typing = /^(input|select|textarea)$/i.test(event.target.tagName);
+  const { selectedNote } = store.getState();
+  if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNote && !typing) {
+    event.preventDefault();
+    store.removeLaneNote(selectedNote.lane, selectedNote.start);
+  }
 });

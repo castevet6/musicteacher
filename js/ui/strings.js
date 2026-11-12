@@ -60,6 +60,14 @@ const en = {
     bpm: 'BPM',
     loop: 'Loop',
     click: 'Click',
+    grid: 'Grid',
+  },
+  roll: {
+    lane: { melody: 'Melody', bass: 'Bass' },
+    rollAria: (lane) => `${lane} roll`,
+    clear: 'Clear',
+    clearLane: (lane) => `Clear the ${lane.toLowerCase()}`,
+    hint: 'Click a cell to add a note, drag to lengthen it, click a note to select it, click again to delete it.',
   },
   chords: {
     title: 'Chords',
@@ -158,6 +166,14 @@ const fi = {
     bpm: 'BPM',
     loop: 'Toisto',
     click: 'Metronomi',
+    grid: 'Ruudukko',
+  },
+  roll: {
+    lane: { melody: 'Melodia', bass: 'Basso' },
+    rollAria: (lane) => `${lane}rulla`,
+    clear: 'Tyhjennä',
+    clearLane: (lane) => `Tyhjennä ${lane.toLowerCase()}`,
+    hint: 'Napsauta ruutua lisätäksesi sävelen, vedä pidentääksesi, napsauta säveltä valitaksesi sen ja uudelleen poistaaksesi.',
   },
   chords: {
     title: 'Soinnut',

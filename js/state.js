@@ -1,4 +1,5 @@
 import { analyzeProgression, slotFocus } from './theory/analysis.js';
+import { addNote, clampLane, emptyLane, removeNote, resizeNote, slotAtTick } from './theory/composition.js';
 import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
@@ -22,6 +23,10 @@ let state = derive({
   activeChord: null,
   progression: emptyProgression(4),
   selectedSlot: null, // { bar, half }
+  grid: 8, // roll grid: 4, 8 or 16 cells per bar
+  melody: emptyLane(), // absolute MIDI notes in ticks; chords are relative, lanes are not
+  bass: emptyLane(),
+  selectedNote: null, // { lane: 'melody' | 'bass', start }
   playback: { playing: false, bpm: 90, loop: true, click: true, playhead: null },
 });
 
@@ -35,7 +40,10 @@ function derive(next) {
   const focusAddr = next.playback.playing ? next.playback.playhead : next.selectedSlot;
   const focusSlot = focusAddr && slots.find((s) => sameAddress(s, focusAddr));
   const focus = focusSlot ? slotFocus(key, slots, focusSlot.index, { loop }) : null;
-  return { ...next, key, suggestions, slots, analysis, focus };
+  // A selected note must still exist in its lane.
+  const ref = next.selectedNote;
+  const selectedNote = ref && next[ref.lane].notes.some((n) => n.start === ref.start) ? ref : null;
+  return { ...next, key, suggestions, slots, analysis, focus, selectedNote };
 }
 
 function update(patch) {
@@ -55,7 +63,7 @@ export function subscribe(fn) {
 
 export function setMode(mode) {
   if (mode === state.mode) return;
-  update({ mode, selected: null, activeChord: null, playback: { ...state.playback, playing: false, playhead: null } });
+  update({ mode, selected: null, activeChord: null, selectedNote: null, playback: { ...state.playback, playing: false, playhead: null } });
 }
 
 export const setLevel = (level) => update({ level });
@@ -74,7 +82,7 @@ export function setScale(scaleId) {
   update({ scaleId, tonicLetter: state.key.tonic.letter, selected: null, activeChord: null });
 }
 export const selectNote = ({ pc, midi }) => update({ selected: { pc, midi }, activeChord: null });
-export const clearSelection = () => update({ selected: null, activeChord: null, selectedSlot: null });
+export const clearSelection = () => update({ selected: null, activeChord: null, selectedSlot: null, selectedNote: null });
 
 export function toggleChord(suggestion) {
   const active = state.activeChord?.id === suggestion.id ? null : suggestion;
@@ -92,14 +100,62 @@ function setProgression(progression, selectedSlot = state.selectedSlot) {
   update({ progression, selectedSlot: clampSlot(progression, selectedSlot) });
 }
 
-export const setBarCount = (count) => setProgression(resizeProgression(state.progression, count));
+export function setBarCount(count) {
+  const progression = resizeProgression(state.progression, count);
+  const bars = progression.bars.length;
+  update({
+    progression,
+    selectedSlot: clampSlot(progression, state.selectedSlot),
+    melody: clampLane(state.melody, bars),
+    bass: clampLane(state.bass, bars),
+  });
+}
 export const toggleSplit = (bar) => setProgression(splitBar(state.progression, bar));
 export const loadPreset = (id) => setProgression(presetProgression(id), { bar: 0, half: 0 });
 export const clearProgression = () => setProgression(emptyProgression(state.progression.bars.length), null);
 
 export function selectSlot(addr) {
-  update({ selectedSlot: addr && clampSlot(state.progression, addr), selected: null });
+  update({ selectedSlot: addr && clampSlot(state.progression, addr), selected: null, selectedNote: null });
 }
+
+// ---------- Lanes (melody, bass) ----------
+
+export const setGrid = (grid) => update({ grid });
+
+/** Selecting a note also focuses the chord under it and lights its pitch on the instrument. */
+function noteFocus(note) {
+  const slot = slotAtTick(state.slots, note.start);
+  return {
+    selected: { pc: note.midi % 12, midi: note.midi },
+    activeChord: null,
+    selectedSlot: slot ? { bar: slot.bar, half: slot.half } : state.selectedSlot,
+  };
+}
+
+export function addLaneNote(lane, note) {
+  const next = addNote(state[lane], note);
+  const added = next.notes.find((n) => n.start === Math.max(0, Math.round(note.start)));
+  update({ [lane]: next, selectedNote: { lane, start: added.start }, ...noteFocus(added) });
+}
+
+export function removeLaneNote(lane, start) {
+  update({ [lane]: removeNote(state[lane], start), selectedNote: null, selected: null });
+}
+
+export function resizeLaneNote(lane, start, length) {
+  update({ [lane]: resizeNote(state[lane], start, length, state.progression.bars.length) });
+}
+
+export function selectLaneNote(ref) {
+  if (!ref) {
+    update({ selectedNote: null });
+    return;
+  }
+  const note = state[ref.lane].notes.find((n) => n.start === ref.start);
+  if (note) update({ selectedNote: ref, ...noteFocus(note) });
+}
+
+export const clearLane = (lane) => update({ [lane]: emptyLane(), selectedNote: null });
 
 /** Put `chord` (absolute, or null to empty the slot) at `addr`, adding a bar if `addr` is one past the end. */
 export function setSlotChord(addr, chord) {
