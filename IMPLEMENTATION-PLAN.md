@@ -38,13 +38,21 @@ js/theory/progression.js  relative chords, parseNumeral(), PRESETS, bar/slot hel
 js/theory/analysis.js   analyzeChord(), findCadences(), progressionAdvice(), nextChords(), slotFocus() (§9)
 js/theory/overChord.js  chordScale(), notesOverChord(), guideTones() (§9)
 js/theory/adviceText.js beginner / intermediate texts for the analysis (§9)
+js/theory/composition.js  ticks, lanes, chordAtTick(), composition file (§10)
+js/theory/melodyFit.js    laneFit(), cellTiers() (§10)
+js/theory/melodyCritique.js critiqueLane() (§10)
+js/theory/nextNote.js     suggestNextNotes() (§10)
+js/theory/harmonize.js    rankChords(), slotFit(), guessKeys() (§10)
+js/theory/bassLine.js     bassTiers(), bassPattern(), critiqueBass() (§10)
 js/ui/controls.js       instrument toggle, root and scale selects
 js/ui/piano.js          SVG keyboard
 js/ui/guitar.js         SVG fretboard
 js/ui/chordPanel.js     chord suggestion list
 js/ui/dom.js            h(), prettyText(), prettySymbol() shared by the panels
-js/ui/progressionStrip.js  bar strip, presets, transport controls
-js/ui/progressionPanel.js  chord picker, notes over the chord, advice
+js/ui/chordStrip.js     bar strip with chord slots and fit dots (§10, was progressionStrip.js)
+js/ui/roll.js           piano roll, used for melody and bass (§10)
+js/ui/transportBar.js   play, tempo, grid, mix, title, style, files (§10)
+js/ui/composerPanel.js  selection-driven tabs: chord, melody, bass, piece (§10)
 js/audio/synth.js       Web Audio synth
 js/audio/transport.js   lookahead scheduler for progression playback
 test/notes.test.js
@@ -54,6 +62,12 @@ test/suggest.test.js
 test/progression.test.js
 test/overChord.test.js
 test/analysis.test.js
+test/composition.test.js
+test/melodyFit.test.js
+test/melodyCritique.test.js
+test/nextNote.test.js
+test/harmonize.test.js
+test/bassLine.test.js
 package.json
 README.md
 AGENTS.md
@@ -356,3 +370,253 @@ A header toggle switches between **Explore** (§1–§8) and **Progression**. Ke
 - New state: `mode`, `level`, `progression`, `selectedSlot`, `playback { playing, bpm, loop, click, playhead }`. Derived: `slots`, `analysis`, and `focus` (the playhead slot while playing, otherwise the selected slot) from `slotFocus()`.
 - `transport.js` schedules on `AudioContext` time with a 25 ms timer and 100 ms lookahead. It reads fresh state for each slot, plays the chord on its downbeat (strummed on guitar) and an optional click on every beat, and moves the playhead with a `setTimeout` aligned to the audio clock.
 
+
+## 10. Composer
+
+Composer replaces Progression mode. The header toggle is **Explore** | **Composer**; key, scale, instrument, level and language are shared. Composer keeps everything §9 built (chord strip, presets, analysis, advice, playback) and adds a melody roll, a bass roll, melody and bass assistance, chord ranking for a melody, key guessing, styles and JSON files. Requirements were settled in the design interview of 2026-11-12; this section is the result.
+
+### 10.1 Scope decisions
+
+| Topic | Decision |
+|---|---|
+| Modes | Explore and Composer. Progression mode's features move into Composer and the mode id `'progression'` disappears. |
+| Time | 4/4 only, 1–16 bars (`MAX_BARS`), one linear loop. Grid of 1/4, 1/8 or 1/16. No triplets, no swing. Changing the grid never moves or deletes notes. |
+| Lanes | Melody and bass, each monophonic, each its own roll. Chords stay in the strip. |
+| Entry | Draw on the roll only. Click adds a note one grid step long and auditions it, clicking a note deletes it, dragging its right edge lengthens it, a note placed over an existing one replaces it. No step entry, no typing, no MIDI input. |
+| Pitch storage | Melody and bass are absolute MIDI notes. Chords stay relative to the key. Moving the root picker offers a one-click transpose of the lanes; a key chosen from the key guess never transposes. A scale change never transposes. |
+| Roll range | The selected instrument's range (guitar E2–G5, piano C2–B5), vertical scroll opening around C4. Bass roll E1–G3 regardless of instrument. Notes outside the range extend the roll and are drawn in the out-of-range style. |
+| Assistance | Melody: fit map, six critique rules, next-note ghosts. Harmony: per-slot chord ranking, fit dot on filled slots, key guess on demand. Bass: fit map with root emphasis, style patterns, critique against the melody, ghosts. No generation. |
+| Styles | `pop` (default), `jazz`, `folk`. A style changes ranking weights, critique thresholds and bass patterns, never the chord vocabulary. |
+| Level | Beginner shows critique rules 1, 3 and 5 and the short texts; intermediate shows all six with their names. |
+| Playback | Chords, melody and bass through the transport, separate timbre per lane, mute and solo per lane, play from the selected slot, loop toggle kept. The playhead lights the sounding melody note on the instrument (every guitar position). |
+| Instrument clicks | Play the note and highlight its roll row. Nothing is placed. |
+| Panel | Content follows the selection (slot → chord tools, note → melody or bass tools, nothing → piece overview), with a tab bar as override. |
+| Files | JSON export and import with title, version, key, style, bpm, chords, melody, bass. Editable title becomes the file name. Import confirms before replacing a non-empty composition. No localStorage, no MIDI. URL sharing later. |
+| Layout | Roll is the hero. Instrument above it, collapsible. Chord strip and rolls share one horizontal scroller so bars line up. |
+
+Out of scope for this section: polyphony, triplets, sections and repeats, melody generation, MIDI import or export, URL state, a bass fretboard.
+
+### 10.2 Model (`theory/composition.js`)
+
+- Time is in ticks: `TICKS_PER_BEAT = 12`, `TICKS_PER_BAR = 48`. The grid id is the subdivision (`4 | 8 | 16`) and `gridTicks(grid) = TICKS_PER_BAR / grid`. Twelve ticks per beat leave room for triplets later without renumbering.
+- A lane note is `{ start, length, midi }` in ticks. A lane is `{ notes: Note[] }`, sorted by `start`, never overlapping.
+- `addNote(lane, note)` removes every note that overlaps `[start, start + length)` and inserts the new one. `removeNote(lane, start)`. `resizeNote(lane, start, length)` clamps `length` to at least one tick and at most the next note's start or the end of the last bar. `noteAt(lane, tick)`. `clampLane(lane, barCount)` drops notes starting at or past the end and trims notes that cross it. `transposeLane(lane, semis)`.
+- `chordAtTick(slots, tick)` → the slot whose span covers `tick`, or `null` (slot spans come from `beats`). `segments(slots, note)` splits a note at slot boundaries into `{ start, length, slot }` pieces.
+- `beatWeight(start)`: beat 1 → 3, beat 3 → 2, beats 2 and 4 → 1, any off-beat → 0.5. A segment's weight is `beatWeight(segment.start) * segment.length`.
+- Composition file (`serializeComposition(state)`, `parseComposition(text)`):
+
+```js
+{
+  version: 1, title: 'Untitled', rootPc: 0, scaleId: 'major', tonicLetter: 'C',
+  style: 'pop', bpm: 90,
+  progression: { bars: [{ chords: [RelChord | null] }] },
+  melody: { notes: [{ start, length, midi }] },
+  bass:   { notes: [...] },
+}
+```
+
+`parseComposition` validates every field (unknown scale, quality, out-of-range midi, overlapping notes, more than 16 bars) and throws a message the UI shows; it never half-loads. The file name is the title slugged plus `.json`.
+
+### 10.3 Melody fit (`theory/melodyFit.js`)
+
+- `laneFit(key, slots, lane)` → one entry per note: `{ note, segments: [{ start, length, slot, chord, tier, label, weight }] }`. The tier and label come from `notesOverChord(key, chord, analysis)` for the slot's chord (computed once per slot). With no chord in the slot: `scale` when the pc is in `key.scalePcs`, `parent` when only in `key.parentPcs`, `blue`, else `outside`.
+- `cellTiers(key, slots)` → for each slot, the 12-entry tier array the roll paints its map with. An empty slot paints scale membership only.
+- `tierScore`: `chord` 1, `scale` 0.4, `parent` 0.3, `blue` 0.3, `avoid` −0.5, `outside` −1. `noteFit(entry)` is the weight-averaged tier score of its segments, in −1…1.
+
+### 10.4 Melody critique (`theory/melodyCritique.js`)
+
+`critiqueLane(key, slots, lane, { style, level, grid })` → `[{ rule, noteIndex, data }]`, in note order. The six rules:
+
+| # | id | Fires when |
+|---|---|---|
+| 1 | `nct-strong-beat` | A segment starting on beat 1 or 3 is not a chord tone, and the next note is not a step (≤ 2 semitones) away. |
+| 2 | `avoid-held` | A segment in the `avoid` tier is longer than one grid step. |
+| 3 | `outside-unresolved` | A note in the `outside` tier (or a chromatic `avoid` with reason `clash`) is not both approached and left by a half or whole step. |
+| 4 | `big-leap` | The interval to the previous note exceeds the leap limit and the next note does not move back by step in the opposite direction. Limit: a sixth (9 semitones) in pop and jazz, a fifth (7) in folk. |
+| 5 | `bar-no-chord-tone` | A bar that has notes but no segment in the `chord` tier. Fires once per bar, on the bar's first note. |
+| 6 | `ends-off-chord` | The last note of the piece is not a chord tone of the chord in force under it. |
+
+Style: jazz skips rule 2 for tensions over a dom7 (already not avoid) and lets rule 3 pass a chromatic note approached by step from either side and left by a half step. Level: beginner keeps rules 1, 3 and 5 only. Texts live in `text/en.js` and `fi.js` under `critique`, two levels each.
+
+### 10.5 Next-note ghosts (`theory/nextNote.js`)
+
+`suggestNextNotes(key, slots, lane, afterStart, { style, grid })` → up to three `{ midi, reason }` for the cell right after the note at `afterStart` (or after the last note). Candidates: every pitch within an octave of the previous note that is in the key or a chord tone of the chord in force at that cell. Score per candidate:
+
+| Feature | Score |
+|---|---|
+| Chord tone at that cell | +3 |
+| Scale tone | +1 |
+| Step from the previous note | +2 |
+| Resolves a tendency: 7th of the previous chord down a step, leading tone up to the tonic, an `avoid` note down a step | +3, reason `resolves` |
+| Leap larger than a fifth | −2 |
+| Same pitch as the previous note | −1 (jazz −2) |
+| Beat 1 of a bar and this is the chord root or 3rd | +1 |
+
+Return the top three with distinct reasons where possible (`chord-tone`, `step`, `resolves`, `leap-to-chord-tone`). With no previous note: the tonic, 3rd and 5th of the chord in force. Duration is one grid step.
+
+### 10.6 Chord ranking and key guess (`theory/harmonize.js`)
+
+- `rankChords(key, slots, lane, slotIndex, { style, loop })` → `[{ chord, roman, fit, score, reasons }]`. Candidates: `chordPalette(key)` (diatonic, borrowed, secondary). `fit` is the weight-averaged tier score of the melody segments inside the slot, each tier computed with `notesOverChord` for the candidate. `score = fit + bonuses`:
+  - diatonic +0.2, primary degree (I, IV, V and V7, i, iv, v, V in minor) +0.05
+  - style: jazz +0.1 for a 7th chord, pop and folk +0.1 for a triad
+  - context: +0.1 when the previous chord → candidate or candidate → next chord forms a cadence in `findCadences` (loop-aware), −0.1 when the candidate equals the previous chord
+  - a non-diatonic candidate is listed only if its `fit` beats every diatonic candidate's `fit`
+  - an empty-melody slot ranks by `nextChords` of the previous chord (or the tonic first), with `fit = null`
+- `slotFit(key, slots, lane, slotIndex)` → the current chord's `fit` for the fit dot: `good` ≥ 0.7, `ok` ≥ 0.3, otherwise `clash`; `null` when the slot has no melody.
+- `guessKeys(melody, slots, bass)` → top three `{ rootPc, scaleId, score, reasons }` over the 60 combinations of 12 roots × 5 scales. Pitch classes are weighted by note length (chord tones from filled slots count as a quarter note each). `coverage` is the weighted share of notes inside the scale. `score = coverage + 0.15 if the melody ends on the tonic + 0.05 if it starts on the tonic or 5th − 0.02 per scale note the melody never uses`. Reasons: `fits-all`, `fits-most(n)`, `ends-on-tonic`, `chords-diatonic`.
+
+### 10.7 Bass (`theory/bassLine.js`)
+
+- Range `BASS_LOW = 28` (E1) to `BASS_HIGH = 55` (G3). `bassTiers(key, slots)` is `cellTiers` with the chord root promoted to tier `root` and the 5th to `fifth`.
+- `bassPattern(key, slots, patternId, { loop })` → a lane for every filled slot (empty slots stay empty). The root octave for a slot is the instance of the root pc nearest to the previous slot's last note, within 28–48 so a 5th above still fits; the first slot uses C2–B2.
+
+| id | Style | Per slot of `n` beats |
+|---|---|---|
+| `root` | pop | root held for the slot |
+| `rootFifth` | pop | root for the first half, 5th above for the second |
+| `rootOctave` | pop | root for the first half, root an octave up for the second |
+| `alternating` | folk | quarters: root, 5th below (above if below E1), root, 5th below |
+| `walking` | jazz | quarters: root, 3rd, 5th, approach note a half step below the next slot's root (above when below the range); a 2-beat slot gets root and approach |
+
+- `critiqueBass(key, slots, bass, melody, { style })`:
+
+| id | Fires when |
+|---|---|
+| `clash-with-melody` | On a beat-1 or beat-3 tick, bass and melody sound a minor 9th (13 mod 12 = 1 above an octave or more) or a tritone, unless the chord is a dom7 and both notes are chord tones. |
+| `not-chord-tone-at-change` | The bass note sounding at a slot's first tick is not a chord tone of that slot's chord. |
+| `parallel-octaves` | Two consecutive bass notes and the melody notes sounding over them move by the same interval while an octave (or two) apart. |
+
+- Bass ghosts reuse `suggestNextNotes` with bass weights: root +4, 5th +2, approach into the next slot's root +3, range clamped to the bass roll.
+
+### 10.8 Golden cases
+
+Melody fit, C major, one chord per bar unless noted, grid 1/8:
+
+| Case | Expected |
+|---|---|
+| E quarter on beat 1 over C | tier `chord`, label 3, weight 36 |
+| F half on beat 1 over C | tier `avoid`, label 11 |
+| C quarter over G | tier `avoid`, label 11; over G7 `avoid` too; over Dm7 `scale`, label b7 |
+| G whole note across C → G | two segments: `chord` 5 (48 ticks) and `chord` R (48 ticks) |
+| D and C# over an empty slot | D `scale`; C# `outside` |
+| Empty slot in A minor pentatonic: B | `parent` |
+
+Critique, C major, chords C G Am F:
+
+| Case | Expected |
+|---|---|
+| Bar 1: F quarter on beat 1, then E | nothing |
+| Bar 1: F quarter on beat 1, then A | `nct-strong-beat` on F |
+| Bar 1: F half note, grid 1/8 | `avoid-held` on F (and rule 1 unless E follows) |
+| Bar 1: F, F#, G eighths | nothing |
+| Bar 1: F# quarter then C | `outside-unresolved` on F# |
+| C4, C5, D5 | `big-leap` on C5. C4, C5, B4: nothing |
+| Folk style: C4, A4, B4 | `big-leap` on A4; pop: nothing |
+| Bar 1: D F D F quarters | `bar-no-chord-tone` on the first D |
+| Last note D over F (bar 4) | `ends-off-chord`; last note A: nothing |
+| Beginner level, all of the above | only rules 1, 3 and 5 reported |
+
+Next-note ghosts, C major:
+
+| Case | Expected |
+|---|---|
+| After B4 over G, next cell over C | C5 first, reason `resolves` |
+| After F4 over C (avoid), next cell over C | E4 first, reason `resolves` |
+| After E4 over C, next cell over C | G4 and D4 among the three, D4 reason `step` |
+| No notes yet, bar 1 over C | C4, E4, G4 |
+
+Chord ranking, C major:
+
+| Case | Expected |
+|---|---|
+| Slot: E, G halves | C first (fit 1, both chord tones), Em second; Am below both |
+| Slot: F, A halves, jazz style | Fmaj7 and Dm7 above F and Dm |
+| Slot: B, D, F, D quarters | G7 first, Bdim second (both fit 1; G7 is primary) |
+| Slot: Ab whole | no diatonic chord fits; Fm (iv) and Ab (bVI) listed, Fm first |
+| Slot 4: D whole, slots 1–3 C Am F, loop on | G above Dm (cadence into bar 1) |
+| Empty melody in slot 2 after C | the `nextChords` order for C, `fit` null |
+| `slotFit`: C with melody E G | `good`; C with F whole: `clash` |
+
+Key guess:
+
+| Melody (and chords) | Top results |
+|---|---|
+| C D E F G A B C, quarters | C major, then A minor |
+| A C D E G A, ends on A | A minor pentatonic, A minor, C major pentatonic |
+| F G A Bb C D E F | F major, then D minor |
+| D E F# G with chords G D Em C | G major first, E minor second (`chords-diatonic`) |
+| E G A Bb B D E | E blues first, E minor pentatonic second |
+
+Bass, C | G7 looping:
+
+| Pattern | Expected |
+|---|---|
+| `root` | C2 whole, G2 whole |
+| `rootFifth` | C2 half G2 half, G2 half D3 half |
+| `rootOctave` | C2 half C3 half, G2 half G3 half |
+| `alternating` | C2 G1 C2 G1, G2 D2 G2 D2 quarters |
+| `walking` | C2 E2 G2 F#2, G2 B2 D3 B2 (B2 approaches C3 in the loop) |
+| Critique: bass E2, melody F4 on beat 1 over C | `clash-with-melody` |
+| Critique: bass B1, melody F4 over G7 | nothing; over C: `clash-with-melody` |
+| Critique: bass D2 on beat 1 of a C bar | `not-chord-tone-at-change` |
+| Critique: melody C4 D4, bass C2 D2 on beats 1 and 2 | `parallel-octaves` |
+
+### 10.9 State
+
+```js
+mode: 'explore' | 'composer',
+style: 'pop' | 'jazz' | 'folk',
+title: 'Untitled',
+grid: 8,
+melody: Lane, bass: Lane,
+activeLane: 'chords' | 'melody' | 'bass',    // which roll was touched last
+selectedNote: { lane, start } | null,
+showMap: true,
+instrumentCollapsed: false,
+mix: { chords: 'on' | 'mute' | 'solo', melody: ..., bass: ... },
+pendingTranspose: { semis } | null,         // set by setRoot when a lane has notes
+playback: { ..., playhead: { bar, half }, sounding: { melody: midi | null, bass: midi | null } },
+history: Composition[]                       // undo snapshots, milestone 10
+```
+
+Derived: `melodyFit`, `bassFit`, `cellTiers`, `bassTiers`, `critique`, `bassCritique`, `ghosts` (for the selected note's lane), `slotFits`, and `ranking` for the selected slot. Actions: `setStyle`, `setTitle`, `setGrid`, `addLaneNote`, `removeLaneNote`, `resizeLaneNote`, `selectNote`, `setShowMap`, `setMix`, `applyKey` (no transpose), `confirmTranspose`, `dismissTranspose`, `loadComposition`, `applyBassPattern`, `undo`, `setSounding`, `toggleInstrument`.
+
+`setRoot` in Composer with notes in any lane sets `pendingTranspose` to the shortest signed distance (−6…5) and leaves the lanes alone; `confirmTranspose` applies `transposeLane` to both lanes. `setBarCount` runs `clampLane` on both lanes. `setMode` to `explore` stops playback.
+
+### 10.10 UI
+
+- `ui/roll.js`: `createRoll(container, { lane, low, high, onAdd, onRemove, onResize, onSelect, onAudition })`, rendered as SVG. The map is one rect per row per slot (not per cell), grid lines are one group, notes are rects with a resize handle, ghosts are dashed rects, the selected note has a class, critique markers are small triangles on the note. A single pointer listener on the SVG converts coordinates to `(row, tick)` and snaps `tick` to the grid. Bar width is `--bar-width` so the chord strip and both rolls line up inside `.timeline` (one `overflow-x: auto` wrapper). Row labels sit in a sticky left column and use `displayName`. Rows outside the scale are shaded, the tonic row is marked.
+- `ui/chordStrip.js` is `progressionStrip.js` renamed, minus the transport, plus the fit dot per slot.
+- `ui/transportBar.js`: play, bpm, loop, click, grid selector, mix buttons per lane, title field, style select, Suggest key, Export, Import, Undo.
+- `ui/composerPanel.js` replaces `progressionPanel.js`: a tab bar (Chord, Melody, Bass, Piece) whose active tab follows the selection unless the user pinned one. Chord tab: the existing picker and notes-over-chord list, with the ranking list on top when the slot's bar has melody. Melody tab: the selected note's fit, its critique items, ghosts. Bass tab: pattern buttons (apply to all or to the selected slot), fit, critique. Piece tab: the whole critique list, progression advice, key guess results.
+- Instruments: in Composer `render` lights `playback.sounding.melody` (every position) and the hovered roll row; a click calls `onAudition` and sets a `hoverRow` highlight on the roll. The instrument section gets a collapse button.
+- Legend: a composer legend with the map tiers, root and fifth for bass, and the fit dot states.
+- All new strings in `ui/strings.js` and `theory/text/{en,fi}.js`, both languages, and the `data-i18n` attributes for new static markup.
+
+### 10.11 Audio
+
+- `synth.js` gains `playLead(midi, { when, duration })` (sawtooth through a low-pass filter, slightly louder than the chord voice) and `playBass(midi, { when, duration })` (sine plus a triangle an octave up, low-passed). Notes stop at their length with a short release.
+- `transport.js` schedules per slot as now, and inside each slot also schedules every melody and bass note whose `start` falls in the slot's span, honouring `mix` (solo wins, then mute). Each note start also schedules `onSounding(lane, midi)` and its end `onSounding(lane, null)`. `transport.start(from)` starts at the selected slot. `transport.tick()` returns the current tick for the roll's playhead line, which the roll draws with `requestAnimationFrame` while playing.
+
+### 10.12 Milestones
+
+Each milestone is a commit, `npm test` green, both languages checked. "Try" is what to do in the browser to validate it.
+
+| # | Work | Done when | Try |
+|---|---|---|---|
+| 1 | Rename Progression to Composer: mode id, toggle label, `chordStrip.js`, `composerPanel.js` skeleton with tabs, `.timeline` wrapper, collapsible instrument, composer legend. No roll yet. | Everything §9 did still works under the Composer label, tests green, Finnish labels present. | Load a preset, play it, collapse the instrument, switch language. |
+| 2 | `composition.js`: ticks, lane ops, `chordAtTick`, `segments`, `beatWeight`, `clampLane`, `transposeLane`, `serializeComposition`, `parseComposition` + tests. | Tests cover add-replaces-overlap, resize clamps, clamp on bar removal, parse rejects every invalid field. | Nothing visible yet. |
+| 3 | `roll.js` for the melody: draw, delete, resize, audition, selection, grid selector, row labels and shading, instrument range, alignment with the strip, instrument click highlights the row. State actions for the lane. | Twinkle Twinkle entered in C at 1/4 survives switching the grid to 1/8 and 1/16 and back, removing a bar trims it, and the roll scrolls with the strip at 375 px. | Enter a tune on both instruments, resize notes, change bars, change grid. |
+| 4 | Playback: `playLead`, transport schedules melody notes, `sounding` lights the instrument, playhead line, mix buttons, play from the selected slot, transpose prompt on root change. | The tune plays in time with the chords from bar 1 or the selected bar, mute and solo work, and moving the root offers a transpose that moves the notes. | Play Twinkle over C F C G; solo the melody; change the root to D and accept. |
+| 5 | Fit map: `melodyFit.js` + tests, map painting, saturated note colours, map toggle, fit dot on slots (`slotFit`). | The fit golden cases pass and the roll shows them. | Put F on beat 1 over C and watch it turn avoid-coloured; see the slot's dot go to clash. |
+| 6 | Critique: `melodyCritique.js` + tests, markers on notes, Melody and Piece tabs, level gating, style selector with its texts. | The critique golden cases pass; markers and texts show in both languages and both levels. | Reproduce each golden row by drawing it. |
+| 7 | Ghosts: `nextNote.js` + tests, dashed ghost notes after the selected note, click to place. | The ghost golden cases pass; placing a ghost adds a note of one grid step. | Write a phrase one ghost at a time. |
+| 8 | Chord ranking: `rankChords` and `slotFit` in `harmonize.js` + tests, ranking list in the Chord tab, pick fills the slot. | The ranking golden cases pass; picking from the list fills the strip and updates the dot. | Enter a melody with no chords and harmonise it slot by slot. |
+| 9 | Key guess: `guessKeys` + tests, Suggest key button, result list that applies root and scale without transposing. | The key guess golden cases pass and the melody stays put when a key is applied. | Enter the A minor pentatonic riff and pick a suggested key. |
+| 10 | Files and undo: title field, Export, Import with confirm, `history` and Undo. | A round trip through a file reproduces chords, melody, title, style and bpm; undo reverts a deleted note. | Export, clear, import; delete a note and undo. |
+| 11 | Bass roll: second roll instance with the bass range, `playBass`, bass in the transport and mix, `bassTiers` map with root and fifth. | Bass notes draw, play and show the root-emphasised map. | Draw a root-note bass under the chords. |
+| 12 | Bass patterns: `bassPattern` + tests, pattern buttons for all slots or the selected slot. | The bass pattern golden cases pass; applying a pattern fills the bass roll. | Apply walking over a ii–V–I and listen. |
+| 13 | Bass critique and ghosts: `critiqueBass` + tests, bass tab, bass ghosts. | The bass critique golden cases pass and the markers show. | Put F4 over E2 on beat 1 and see the clash. |
+| 14 | Polish: guitar shows bass an octave up on the low strings, 375 px pass of every tab, README and PROJECT-PLAN updates, §8 verification extended with a composer walkthrough. | The verification list runs clean on both instruments at desktop and 375 px. | Full walkthrough. |
+
+Milestones 1–4 build the roll, 5–7 the melody assistant, 8–9 the harmoniser, 10 the files, 11–13 the bass, 14 the finish. Each theory milestone adds its golden rows to the test file named after the module.

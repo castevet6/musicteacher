@@ -6,7 +6,7 @@ The intent of the project is to provide a web app which teaches chord progressio
 
 ## Technology stack
 
-Plain web page compiled with HTML and Vanilla Javascript. No backend, no database, no persistence of sessions or user management. 
+Plain web page compiled with HTML and Vanilla Javascript. No backend, no database, no user management. The session is not persisted, but a composition can be exported to and imported from a JSON file (see Composer below).
 
 ## Features
 
@@ -16,3 +16,15 @@ Plain web page compiled with HTML and Vanilla Javascript. No backend, no databas
     - On guitar neck the scale is highlighted by strings and frets
 - When user clicks on a note, the app shows that which chords are suitable for that note based on the selected scale
 - It is possible for user to select also note outside of the scale, and the app should also give chord recommendations to that note
+## Composer
+
+The second aim is a composing assistant. In the Composer view the user enters a chord progression and a melody, and the app helps with whichever one is missing or weak.
+
+- Enter chords into bars and draw a melody on a piano roll with an adjustable grid. The roll shows, for every bar, which pitches are chord tones, which fit, and which to avoid over the chord in force.
+- Melody help: the app marks notes that rub against the chords (an avoid note held long, an unresolved outside note, a bar that never lands on a chord tone, a leap left hanging) and explains why. It suggests likely next notes after the last note written.
+- Chord help: for a melody without chords, each bar gets a ranked list of chords that fit the notes in it, and the user picks. The app can also suggest the most likely key for an entered melody.
+- Bass help, after the two above: a bass roll with the same fit colouring, style patterns (root, root–fifth, alternating, walking) and warnings where the bass clashes with the melody.
+- A style setting (pop/rock, jazz, folk) changes what the assistant prefers and what it warns about.
+- A composition can be saved to and loaded from a JSON file. Nothing is stored in the browser; the session still resets on reload.
+
+The detailed decisions are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) §10.
