@@ -496,7 +496,7 @@ Melody fit, C major, one chord per bar unless noted, grid 1/8:
 |---|---|
 | E quarter on beat 1 over C | tier `chord`, label 3, weight 36 |
 | F half on beat 1 over C | tier `avoid`, label 11 |
-| C quarter over G | tier `avoid`, label 11; over G7 `avoid` too; over Dm7 `scale`, label b7 |
+| C quarter over G | tier `avoid`, label 11; over G7 `avoid` too; over Dm `scale`, label b7; over Dm7 `chord`, label 7 |
 | G whole note across C → G | two segments: `chord` 5 (48 ticks) and `chord` R (48 ticks) |
 | D and C# over an empty slot | D `scale`; C# `outside` |
 | Empty slot in A minor pentatonic: B | `parent` |

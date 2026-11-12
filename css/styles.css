@@ -511,6 +511,13 @@ body {
 .slot[data-function="subdominant"] { border-top: 3px solid var(--tension); }
 .slot[data-function="dominant"] { border-top: 3px solid var(--root); }
 
+.slot { position: relative; }
+.slot .fit-dot { position: absolute; top: 5px; right: 5px; }
+.fit-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--surface); }
+.fit-dot[data-fit="good"] { background: var(--chord); }
+.fit-dot[data-fit="ok"] { background: var(--guide); }
+.fit-dot[data-fit="clash"] { background: var(--avoid); }
+.legend .fit-dot { width: 12px; height: 12px; }
 .slot-symbol { font-weight: 700; font-size: 1rem; white-space: nowrap; }
 .slot-roman { font-family: Georgia, "Times New Roman", serif; color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 
@@ -567,12 +574,30 @@ body {
 .roll .beat-line { stroke: color-mix(in srgb, var(--text) 30%, var(--border)); stroke-width: 1; }
 .roll .bar-line { stroke: color-mix(in srgb, var(--text) 55%, var(--border)); stroke-width: 1; }
 .roll .bar-gap { fill: var(--bg); }
+/* Fit map: muted tier colours behind the grid; placed notes get the saturated tier colour. */
+.roll .cell { pointer-events: none; }
+.roll .cell.tier-chord { fill: color-mix(in srgb, var(--chord) 28%, var(--surface)); }
+.roll .cell.tier-scale { fill: color-mix(in srgb, var(--tension) 16%, var(--surface)); }
+.roll .cell.tier-parent { fill: color-mix(in srgb, var(--parent-tone) 22%, var(--surface)); }
+.roll .cell.tier-blue { fill: color-mix(in srgb, var(--blue-note) 22%, var(--surface)); }
+.roll .cell.tier-avoid { fill: color-mix(in srgb, var(--avoid) 20%, var(--surface)); }
+.roll .cell.tier-outside { fill: color-mix(in srgb, var(--text) 9%, var(--surface)); }
 .roll .note-body { fill: var(--note); stroke: var(--surface); stroke-width: 1; }
+.roll .note.tier-chord .note-body, .roll .note-piece.tier-chord { fill: var(--chord); }
+.roll .note.tier-scale .note-body, .roll .note-piece.tier-scale { fill: var(--tension); }
+.roll .note.tier-parent .note-body, .roll .note-piece.tier-parent { fill: var(--parent-tone); }
+.roll .note.tier-blue .note-body, .roll .note-piece.tier-blue { fill: var(--blue-note); }
+.roll .note.tier-avoid .note-body, .roll .note-piece.tier-avoid { fill: var(--avoid); }
+.roll .note.tier-outside .note-body, .roll .note-piece.tier-outside { fill: var(--out); }
+.roll .note-piece { pointer-events: none; }
+.roll .note.sounding .note-piece { fill: var(--guide); }
+.roll-map { margin-top: 0; min-height: 32px; padding: 2px 10px; font-size: 0.8rem; }
+.roll-map[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .roll .note.selected .note-body { stroke: var(--ring); stroke-width: 2; }
 .roll .note-label { fill: #fff; font-size: 10px; font-weight: 600; dominant-baseline: central; pointer-events: none; }
 .roll .note-handle { fill: transparent; cursor: ew-resize; }
 .roll .note.sounding .note-body { fill: var(--guide); stroke: var(--ring); stroke-width: 2; }
-.roll .note.sounding .note-label { fill: #111; }
+.roll .note.sounding .note-label, .roll .note.tier-parent .note-label { fill: #111; }
 .roll .playhead { stroke: var(--root); stroke-width: 2; pointer-events: none; }
 
 /* ---------- Composer panel ---------- */

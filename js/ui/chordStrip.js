@@ -53,7 +53,9 @@ export function createChordStrip({ toolbar, bars }, handlers) {
     const addr = { bar: slot.bar, half: slot.half };
     const playing = state.playback.playing && sameAddress(state.playback.playhead, addr);
     const text = ui(state.lang).strip;
-    const label = slot.chord ? text.slotFilled(slot.bar + 1, prettySymbol(slot.chord, state.lang)) : text.slotEmpty(slot.bar + 1);
+    const fit = state.slotFits[slot.index];
+    const base = slot.chord ? text.slotFilled(slot.bar + 1, prettySymbol(slot.chord, state.lang)) : text.slotEmpty(slot.bar + 1);
+    const label = fit ? `${base}, ${text.fit[fit]}` : base;
     return h('button', {
       type: 'button',
       class: `slot${slot.chord ? '' : ' empty'}`,
@@ -65,7 +67,8 @@ export function createChordStrip({ toolbar, bars }, handlers) {
       onclick: () => onSelectSlot(addr, slot.chord),
     },
     h('span', { class: 'slot-symbol' }, slot.chord ? prettySymbol(slot.chord, state.lang) : '+'),
-    analysis && h('span', { class: 'slot-roman' }, prettyText(analysis.roman)));
+    analysis && h('span', { class: 'slot-roman' }, prettyText(analysis.roman)),
+    fit && h('span', { class: 'fit-dot', 'data-fit': fit, title: text.fit[fit] }));
   }
 
   function renderBars(state) {

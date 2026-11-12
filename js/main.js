@@ -116,6 +116,7 @@ const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
   onSelect: (start) => store.selectLaneNote({ lane: 'melody', start }),
   onAudition: (midi) => midi != null && playNote(midi),
   onClear: () => store.clearLane('melody'),
+  onToggleMap: store.toggleMap,
   currentTick: () => transport.tick(),
 });
 const panel = createChordPanel(document.querySelector('#chords'), { onChordClick });

@@ -22,6 +22,9 @@ const en = {
     alsoFits: 'Also fits',
     avoid: 'Avoid',
     guideTone: 'Guide tone',
+    fitGood: 'Melody fits the chord',
+    fitOk: 'Mostly fits',
+    fitClash: 'Clashes',
   },
   controls: {
     mode: 'Mode',
@@ -52,6 +55,7 @@ const en = {
     split: (bar) => `Split bar ${bar} into two chords`,
     oneChord: 'One chord in this bar',
     twoChords: 'Two chords in this bar',
+    fit: { good: 'melody fits', ok: 'melody mostly fits', clash: 'melody clashes' },
   },
   transport: {
     group: 'Playback',
@@ -74,7 +78,10 @@ const en = {
     rollAria: (lane) => `${lane} roll`,
     clear: 'Clear',
     clearLane: (lane) => `Clear the ${lane.toLowerCase()}`,
-    hint: 'Click a cell to add a note, drag to lengthen it, click a note to select it, click again to delete it.',
+    map: 'Map',
+    showMap: 'Show the fit map',
+    hideMap: 'Hide the fit map',
+    hint: 'Click a cell to add a note, drag to lengthen it, click a note to select it, click again to delete it. The map shows how each pitch sits over the chord.',
   },
   chords: {
     title: 'Chords',
@@ -139,6 +146,9 @@ const fi = {
     alsoFits: 'Sopii myös',
     avoid: 'Vältä',
     guideTone: 'Ohjaussävel',
+    fitGood: 'Melodia sopii sointuun',
+    fitOk: 'Sopii enimmäkseen',
+    fitClash: 'Riitelee',
   },
   controls: {
     mode: 'Tila',
@@ -169,6 +179,7 @@ const fi = {
     split: (bar) => `Jaa tahti ${bar} kahteen sointuun`,
     oneChord: 'Yksi sointu tässä tahdissa',
     twoChords: 'Kaksi sointua tässä tahdissa',
+    fit: { good: 'melodia sopii', ok: 'melodia sopii enimmäkseen', clash: 'melodia riitelee' },
   },
   transport: {
     group: 'Soitto',
@@ -191,7 +202,10 @@ const fi = {
     rollAria: (lane) => `${lane}rulla`,
     clear: 'Tyhjennä',
     clearLane: (lane) => `Tyhjennä ${lane.toLowerCase()}`,
-    hint: 'Napsauta ruutua lisätäksesi sävelen, vedä pidentääksesi, napsauta säveltä valitaksesi sen ja uudelleen poistaaksesi.',
+    map: 'Kartta',
+    showMap: 'Näytä sopivuuskartta',
+    hideMap: 'Piilota sopivuuskartta',
+    hint: 'Napsauta ruutua lisätäksesi sävelen, vedä pidentääksesi, napsauta säveltä valitaksesi sen ja uudelleen poistaaksesi. Kartta näyttää, miten kukin sävel istuu soinnun päälle.',
   },
   chords: {
     title: 'Soinnut',

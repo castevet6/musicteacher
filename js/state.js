@@ -6,6 +6,8 @@ import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
+import { slotFitScore, fitLevel } from './theory/harmonize.js';
+import { cellTiers, laneFit } from './theory/melodyFit.js';
 import { buildKey } from './theory/scales.js';
 import { suggestChords } from './theory/suggest.js';
 import { DEFAULT_LANG } from './theory/text/index.js';
@@ -32,6 +34,7 @@ let state = derive({
   melody: emptyLane(), // absolute MIDI notes in ticks; chords are relative, lanes are not
   bass: emptyLane(),
   selectedNote: null, // { lane: 'melody' | 'bass', start }
+  showMap: true, // paint the fit map behind the roll
   mix: defaultMix(), // per lane: 'on' | 'mute' | 'solo'
   pendingTranspose: null, // { fromPc, semis }: the root moved while a lane had notes
   playback: { playing: false, bpm: 90, loop: true, click: true, ...STOPPED },
@@ -50,7 +53,11 @@ function derive(next) {
   // A selected note must still exist in its lane.
   const ref = next.selectedNote;
   const selectedNote = ref && next[ref.lane].notes.some((n) => n.start === ref.start) ? ref : null;
-  return { ...next, key, suggestions, slots, analysis, focus, selectedNote };
+  // How the melody sits over the chords: the roll's map and note colours, the strip's fit dots.
+  const tiers = cellTiers(key, slots, analysis.chords);
+  const melodyFit = laneFit(key, slots, next.melody, analysis.chords);
+  const slotFits = slots.map((slot) => (slot.chord ? fitLevel(slotFitScore(melodyFit, slot.index)) : null));
+  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits };
 }
 
 function update(patch) {
@@ -148,6 +155,7 @@ export function selectSlot(addr) {
 // ---------- Lanes (melody, bass) ----------
 
 export const setGrid = (grid) => update({ grid });
+export const toggleMap = () => update({ showMap: !state.showMap });
 
 /** Selecting a note also focuses the chord under it and lights its pitch on the instrument. */
 function noteFocus(note) {

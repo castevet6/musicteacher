@@ -3,8 +3,9 @@
 // chord strip above it in the same horizontal scroller. Click a cell to add a
 // note, drag to lengthen it, click a note to select it, click again to delete.
 
-import { TICKS_PER_BAR, TICKS_PER_BEAT, gridTicks, noteAt } from '../theory/composition.js';
+import { TICKS_PER_BAR, TICKS_PER_BEAT, gridTicks, noteAt, slotSpan } from '../theory/composition.js';
 import { h } from './dom.js';
+import { noteTier } from '../theory/melodyFit.js';
 import { SVG_NS, displayName, svgEl } from './highlight.js';
 import { ui } from './strings.js';
 
@@ -14,13 +15,14 @@ const CENTER_MIDI = 60; // the roll opens with C4 in view
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
 export function createRoll(container, handlers) {
-  const { lane, range, onAdd, onRemove, onResize, onSelect, onAudition, onClear, currentTick } = handlers;
+  const { lane, range, onAdd, onRemove, onResize, onSelect, onAudition, onClear, onToggleMap, currentTick } = handlers;
 
   container.classList.add('roll');
   container.dataset.lane = lane;
   const head = h('div', { class: 'roll-head' },
     h('span', { class: 'roll-title' }),
     h('span', { class: 'roll-hint' }),
+    h('button', { type: 'button', class: 'btn subtle roll-map', 'aria-pressed': 'true', onclick: onToggleMap }),
     h('button', { type: 'button', class: 'btn subtle roll-clear', onclick: onClear }));
   const labels = h('div', { class: 'roll-labels' });
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -164,6 +166,22 @@ export function createRoll(container, handlers) {
       svgEl('rect', { class: `row ${rowClass(state, midi)}`, x: 0, y: yOf(midi), width, height: rowH, 'data-midi': midi }, rowsG);
     }
 
+    // The fit map: one rect per row per filled slot, in the muted tier colour.
+    // Empty slots show scale membership through the row shading alone.
+    if (state.showMap) {
+      const map = svgEl('g', { class: 'map' }, frag);
+      state.slots.forEach((slot, i) => {
+        if (!slot.chord) return;
+        const span = slotSpan(slot);
+        const x = xOf(span.start);
+        const w = xEnd(span.start + span.length) - x;
+        for (let midi = high; midi >= low; midi--) {
+          const { tier } = state.tiers[i][midi % 12];
+          svgEl('rect', { class: `cell tier-${tier}`, x, y: yOf(midi), width: w, height: rowH, 'data-tier': tier }, map);
+        }
+      });
+    }
+
     const lines = svgEl('g', { class: 'lines' }, frag);
     const step = gridTicks(state.grid);
     for (let bar = 0; bar < bars; bar++) {
@@ -179,14 +197,25 @@ export function createRoll(container, handlers) {
     const notes = svgEl('g', { class: 'notes' }, frag);
     const selected = state.selectedNote;
     const sounding = state.playback.sounding[lane];
+    const fits = new Map((state[`${lane}Fit`] ?? []).map((entry) => [entry.note.start, entry]));
     for (const note of state[lane].notes) {
       const x = xOf(note.start);
       const w = xEnd(note.start + note.length) - x;
       const isSelected = selected?.lane === lane && selected.start === note.start;
       const isSounding = sounding?.start === note.start;
-      const classes = `note${isSelected ? ' selected' : ''}${isSounding ? ' sounding' : ''}`;
-      const g = svgEl('g', { class: classes, 'data-start': note.start }, notes);
+      const fit = fits.get(note.start);
+      const tier = fit && noteTier(fit);
+      const classes = `note${isSelected ? ' selected' : ''}${isSounding ? ' sounding' : ''}${tier ? ` tier-${tier}` : ''}`;
+      const g = svgEl('g', { class: classes, 'data-start': note.start, 'data-tier': tier ?? false }, notes);
       svgEl('rect', { class: 'note-body', x, y: yOf(note.midi) + 1, width: w, height: rowH - 2, rx: 3 }, g);
+      // A note that crosses into another chord shows each piece in its own tier.
+      if (fit && fit.segments.length > 1) {
+        for (const seg of fit.segments) {
+          const sx = xOf(seg.start);
+          const sw = xEnd(seg.start + seg.length) - sx;
+          svgEl('rect', { class: `note-piece tier-${seg.tier}`, x: sx, y: yOf(note.midi) + 1, width: sw, height: rowH - 2 }, g);
+        }
+      }
       if (w >= MIN_LABEL_WIDTH) {
         svgEl('text', { class: 'note-label', x: x + 4, y: yOf(note.midi) + rowH / 2 }, g)
           .textContent = displayName(state, note.midi % 12);
@@ -251,6 +280,10 @@ export function createRoll(container, handlers) {
       clear.textContent = text.clear;
       clear.setAttribute('aria-label', text.clearLane(text.lane[lane]));
       clear.disabled = state[lane].notes.length === 0;
+      const map = head.querySelector('.roll-map');
+      map.textContent = text.map;
+      map.setAttribute('aria-pressed', String(state.showMap));
+      map.title = state.showMap ? text.hideMap : text.showMap;
       svg.setAttribute('aria-label', text.rollAria(text.lane[lane]));
       drawLabels(state);
       drawGrid(state);
