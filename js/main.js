@@ -198,6 +198,7 @@ const composerPanel = createComposerPanel(document.querySelector('#chords'), {
   onSelectNote: store.selectLaneNote,
   onApplyKey: store.applyKey,
   onDismissKeyGuess: store.dismissKeyGuess,
+  onApplyPattern: store.applyBassPattern,
   onPlaceGhost: (ghost) => {
     const { ghosts, grid } = store.getState();
     store.addLaneNote('melody', { start: ghosts.tick, length: gridTicks(grid), midi: ghost.midi });

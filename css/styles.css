@@ -708,6 +708,12 @@ body {
 .pick-roman { font-family: Georgia, "Times New Roman", serif; color: var(--muted); font-size: 0.85rem; }
 .pick-reason { color: var(--muted); font-size: 0.75rem; }
 .next .pick-grid, .ranking .pick-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.bass-patterns .pick-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.pattern-pick .pick-roman { font-family: inherit; font-size: 0.75rem; }
+.pattern-pick[data-suits="true"] { border-color: var(--chord); }
+.bass-patterns .pick-grid + .hint { margin-top: 8px; }
+.pattern-scope { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.scope-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .custom-picker { display: flex; flex-wrap: wrap; gap: 6px; }
 .custom-picker select {

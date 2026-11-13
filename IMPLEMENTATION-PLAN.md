@@ -468,7 +468,7 @@ Return the top three with distinct reasons where possible (`chord-tone`, `step`,
 ### 10.7 Bass (`theory/bassLine.js`)
 
 - Range `BASS_LOW = 28` (E1) to `BASS_HIGH = 55` (G3). `bassTiers(key, slots)` is `cellTiers` with the chord root promoted to tier `root` and the 5th to `fifth`.
-- `bassPattern(key, slots, patternId, { loop })` → a lane for every filled slot (empty slots stay empty). The root octave for a slot is the instance of the root pc nearest to the previous slot's last note, within 28–48 so a 5th above still fits; the first slot uses C2–B2.
+- `bassPattern(key, slots, patternId, { loop })` → a lane for every filled slot (empty slots stay empty). The first filled slot's root sits in C2–B2; every later root is the instance of its pc nearest the previous filled slot's root within C2–C3 (36–48, the lower on a tie), so a 5th above still fits. (Milestone 12: the original rule, nearest the previous slot's last note within 28–48, put G1 after C2 and contradicted the golden rows.) `rootOctave` drops to the octave below when the octave above would pass G3. `applyPattern(bass, pattern, slots, slotIndex)` writes a pattern into all filled slots or one, keeping notes elsewhere; `BASS_PATTERNS` lists the ids with their styles.
 
 | id | Style | Per slot of `n` beats |
 |---|---|---|
@@ -476,7 +476,7 @@ Return the top three with distinct reasons where possible (`chord-tone`, `step`,
 | `rootFifth` | pop | root for the first half, 5th above for the second |
 | `rootOctave` | pop | root for the first half, root an octave up for the second |
 | `alternating` | folk | quarters: root, 5th below (above if below E1), root, 5th below |
-| `walking` | jazz | quarters: root, 3rd, 5th, approach note a half step below the next slot's root (above when below the range); a 2-beat slot gets root and approach |
+| `walking` | jazz | quarters: root, 3rd, 5th, approach note a half step below the next slot's root as the C2–C3 rule would place it from this root (above when below the range); a 2-beat slot gets root and approach; with no next chord (end without loop, or an empty slot next) the 4th quarter returns to the 3rd |
 
 - `critiqueBass(key, slots, bass, melody, { style })`:
 

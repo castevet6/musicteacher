@@ -10,7 +10,7 @@ import {
 } from '../theory/adviceText.js';
 import { buildKey, keyLabel } from '../theory/scales.js';
 import { fitLevel } from '../theory/harmonize.js';
-import { plainTier } from '../theory/bassLine.js';
+import { BASS_PATTERNS, plainTier } from '../theory/bassLine.js';
 import { noteFit, noteTier } from '../theory/melodyFit.js';
 import { chordPalette } from '../theory/analysis.js';
 import { CHORD_QUALITIES, buildChord } from '../theory/chords.js';
@@ -29,13 +29,16 @@ const QUALITY_LABELS = {
 
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
-export function createComposerPanel(container, { onPickChord, onNextChord, onSelectNote, onPlaceGhost, onApplyKey, onDismissKeyGuess }) {
+export function createComposerPanel(container, {
+  onPickChord, onNextChord, onSelectNote, onPlaceGhost, onApplyKey, onDismissKeyGuess, onApplyPattern,
+}) {
   // View-only UI state: which picker tab is shown and whether the picker is open.
   let activeTab = 'diatonic';
   let pickerOpen = false;
   let custom = { letter: 'C', acc: 0, quality: 'maj' };
   let tab = 'piece';
   let lastSelection = null; // the selected slot the tab last followed
+  let patternScope = 'all'; // 'all' bars or only the selected 'slot'
 
   function picker(state, slot) {
     const { lang } = state;
@@ -346,11 +349,49 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
     ];
   }
 
+  /** Pattern buttons: the style's own patterns first, applied to all bars or to the selected slot. */
+  function patternSection(state) {
+    const { lang, style } = state;
+    const text = ui(lang).composer;
+    const styles = ui(lang).transport.styles;
+    if (!state.slots.some((s) => s.chord)) {
+      return h('section', { class: 'bass-patterns' }, h('h3', {}, text.patternsTitle), h('p', { class: 'hint' }, text.patternNoChords));
+    }
+    const sel = state.selectedSlot;
+    const slot = sel && state.slots.find((s) => s.bar === sel.bar && s.half === sel.half && s.chord);
+    const scope = slot ? patternScope : 'all';
+    const where = slot && (slot.beats === 2 ? text.barHalf(slot.bar + 1, slot.half) : text.bar(slot.bar + 1));
+    const scopeButton = (id, label) => h('button', {
+      type: 'button',
+      class: 'btn subtle scope-btn',
+      'data-id': `pattern-scope-${id}`,
+      'aria-pressed': String(scope === id),
+      onclick: () => { patternScope = id; render(state); },
+    }, label);
+    const ordered = [...BASS_PATTERNS.filter((p) => p.style === style), ...BASS_PATTERNS.filter((p) => p.style !== style)];
+    return h('section', { class: 'bass-patterns' },
+      h('h3', {}, text.patternsTitle),
+      slot && h('div', { class: 'pattern-scope', role: 'group', 'aria-label': text.patternScopeAria },
+        scopeButton('all', text.patternScopeAll), scopeButton('slot', text.patternScopeSlot(where))),
+      h('div', { class: 'pick-grid' }, ordered.map((p) => h('button', {
+        type: 'button',
+        class: 'pick pattern-pick',
+        'data-id': `pattern-${p.id}`,
+        'data-style': p.style,
+        'data-suits': String(p.style === style),
+        onclick: () => onApplyPattern(p.id, scope === 'slot' ? slot.index : null),
+      },
+      h('span', { class: 'pick-symbol' }, text.patterns[p.id].name),
+      h('span', { class: 'pick-roman' }, text.patternSuits(styles[p.style])),
+      h('span', { class: 'pick-reason' }, text.patterns[p.id].about)))),
+      h('p', { class: 'hint' }, text.patternHint));
+  }
+
   function bassTab(state) {
     const text = ui(state.lang).composer;
     const index = selectedIndex(state, 'bass');
-    if (index < 0) return [h('h2', {}, text.bassTitle), h('p', { class: 'hint' }, text.hintBass)];
-    return noteSummary(state, 'bass', index);
+    const head = index < 0 ? [h('h2', {}, text.bassTitle), h('p', { class: 'hint' }, text.hintBass)] : noteSummary(state, 'bass', index);
+    return [...head, patternSection(state)];
   }
 
   const TABS = { chord: chordTab, melody: melodyTab, bass: bassTab, piece: pieceTab };

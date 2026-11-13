@@ -7,7 +7,9 @@ import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, rekeyProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
-import { bassFit as bassLaneFit, bassTiers as bassMap } from './theory/bassLine.js';
+import {
+  applyPattern, bassFit as bassLaneFit, bassPattern, bassTiers as bassMap,
+} from './theory/bassLine.js';
 import { fitLevel, guessKeys, rankChords, slotFitScore } from './theory/harmonize.js';
 import { critiqueLane } from './theory/melodyCritique.js';
 import { cellTiers, laneFit } from './theory/melodyFit.js';
@@ -258,6 +260,13 @@ export function selectLaneNote(ref) {
 }
 
 export const clearLane = (lane) => commit({ [lane]: emptyLane(), selectedNote: null });
+
+/** Write bass pattern `patternId` into every filled slot, or only into slot `slotIndex`. */
+export function applyBassPattern(patternId, slotIndex = null) {
+  const { key, slots, playback } = state;
+  const pattern = bassPattern(key, slots, patternId, { loop: playback.loop });
+  commit({ bass: applyPattern(state.bass, pattern, slots, slotIndex), selectedNote: null });
+}
 
 /** Put `chord` (absolute, or null to empty the slot) at `addr`, adding a bar if `addr` is one past the end. */
 export function setSlotChord(addr, chord) {
