@@ -1,6 +1,7 @@
 import { analyzeProgression, slotFocus } from './theory/analysis.js';
 import {
-  addNote, clampLane, defaultMix, emptyLane, removeNote, resizeNote, slotAtTick, toggleMix, transposeDistance, transposeLane,
+  addNote, clampLane, defaultMix, emptyHistory, emptyLane, hasContent, popHistory, pushHistory, removeNote, resizeNote,
+  sameSnapshot, slotAtTick, snapshotComposition, toggleMix, transposeDistance, transposeLane,
 } from './theory/composition.js';
 import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, rekeyProgression, resizeProgression,
@@ -33,6 +34,7 @@ let state = derive({
   progression: emptyProgression(4),
   selectedSlot: null, // { bar, half }
   style: 'pop', // 'pop' | 'jazz' | 'folk': weights and thresholds, never the chord vocabulary
+  title: '', // the composition's name and its file name on export; empty shows a placeholder
   grid: 8, // roll grid: 4, 8 or 16 cells per bar
   melody: emptyLane(), // absolute MIDI notes in ticks; chords are relative, lanes are not
   bass: emptyLane(),
@@ -40,6 +42,9 @@ let state = derive({
   showMap: true, // paint the fit map behind the roll
   mix: defaultMix(), // per lane: 'on' | 'mute' | 'solo'
   pendingTranspose: null, // { fromPc, semis }: the root moved while a lane had notes
+  history: emptyHistory(), // { entries: snapshots to undo to, tag of the last edit }
+  pendingImport: null, // a parsed composition file waiting for "replace?" to be answered
+  fileError: null, // { code, path } from the last failed import
   keyGuess: null, // results of the last Suggest key, [{ rootPc, scaleId, score, coverage, reasons }], until applied or dismissed
   playback: { playing: false, bpm: 90, loop: true, click: true, ...STOPPED },
 });
@@ -79,6 +84,29 @@ function update(patch) {
 
 const updatePlayback = (patch) => update({ playback: { ...state.playback, ...patch } });
 
+/**
+ * An undoable edit: remember the composition as it was, then apply `patch`.
+ * Edits sharing a `tag` (one drag on the roll) undo together; an edit that
+ * changes nothing leaves no entry.
+ */
+function commit(patch, tag = null) {
+  const before = snapshotComposition(state);
+  const after = snapshotComposition({ ...state, ...patch });
+  const history = sameSnapshot(before, after) ? state.history : pushHistory(state.history, before, tag);
+  update({ ...patch, history });
+}
+
+/** The state fields a snapshot or a loaded file sets, with the selection reset around them. */
+function compositionPatch(c) {
+  return {
+    title: c.title, rootPc: c.rootPc, scaleId: c.scaleId, tonicLetter: c.tonicLetter, style: c.style,
+    progression: c.progression, melody: c.melody, bass: c.bass,
+    playback: { ...state.playback, bpm: c.bpm },
+    selectedSlot: clampSlot(c.progression, state.selectedSlot),
+    selected: null, activeChord: null, pendingTranspose: null, keyGuess: null,
+  };
+}
+
 export const getState = () => state;
 
 export function subscribe(fn) {
@@ -110,7 +138,7 @@ export function setRoot(rootPc) {
   const fromPc = state.pendingTranspose?.fromPc ?? state.rootPc;
   const semis = transposeDistance(fromPc, rootPc);
   const pendingTranspose = hasNotes && semis !== 0 ? { fromPc, semis } : null;
-  update({ rootPc, tonicLetter: null, selected: null, activeChord: null, pendingTranspose });
+  commit({ rootPc, tonicLetter: null, selected: null, activeChord: null, pendingTranspose });
 }
 
 export function confirmTranspose() {
@@ -120,7 +148,7 @@ export function confirmTranspose() {
   const bass = transposeLane(state.bass, pending.semis);
   const ref = state.selectedNote;
   const note = ref && { melody, bass }[ref.lane].notes.find((n) => n.start === ref.start);
-  update({ melody, bass, pendingTranspose: null, ...(note ? noteFocus(note) : {}) });
+  commit({ melody, bass, pendingTranspose: null, ...(note ? noteFocus(note) : {}) });
 }
 
 export const dismissTranspose = () => update({ pendingTranspose: null });
@@ -136,14 +164,14 @@ export const dismissKeyGuess = () => update({ keyGuess: null });
  */
 export function applyKey(rootPc, scaleId) {
   const to = buildKey(rootPc, scaleId);
-  update({
+  commit({
     rootPc, scaleId, tonicLetter: null,
     progression: rekeyProgression(state.key, to, state.progression),
     keyGuess: null, pendingTranspose: null, selected: null, activeChord: null,
   });
 }
 export function setScale(scaleId) {
-  update({ scaleId, tonicLetter: state.key.tonic.letter, selected: null, activeChord: null });
+  commit({ scaleId, tonicLetter: state.key.tonic.letter, selected: null, activeChord: null });
 }
 export const selectNote = ({ pc, midi }) => update({ selected: { pc, midi }, activeChord: null });
 export const clearSelection = () => update({ selected: null, activeChord: null, selectedSlot: null, selectedNote: null });
@@ -161,13 +189,13 @@ function clampSlot(progression, addr) {
 }
 
 function setProgression(progression, selectedSlot = state.selectedSlot) {
-  update({ progression, selectedSlot: clampSlot(progression, selectedSlot) });
+  commit({ progression, selectedSlot: clampSlot(progression, selectedSlot) });
 }
 
 export function setBarCount(count) {
   const progression = resizeProgression(state.progression, count);
   const bars = progression.bars.length;
-  update({
+  commit({
     progression,
     selectedSlot: clampSlot(progression, state.selectedSlot),
     melody: clampLane(state.melody, bars),
@@ -185,7 +213,8 @@ export function selectSlot(addr) {
 // ---------- Lanes (melody, bass) ----------
 
 export const setGrid = (grid) => update({ grid });
-export const setStyle = (style) => update({ style });
+export const setStyle = (style) => commit({ style });
+export const setTitle = (title) => commit({ title: String(title).trim().slice(0, 120) });
 export const toggleMap = () => update({ showMap: !state.showMap });
 
 /** Selecting a note also focuses the chord under it and lights its pitch on the instrument. */
@@ -198,18 +227,19 @@ function noteFocus(note) {
   };
 }
 
-export function addLaneNote(lane, note) {
+// `tag` names the roll gesture an edit belongs to, so a click-and-drag undoes in one step.
+export function addLaneNote(lane, note, tag = null) {
   const next = addNote(state[lane], note);
   const added = next.notes.find((n) => n.start === Math.max(0, Math.round(note.start)));
-  update({ [lane]: next, selectedNote: { lane, start: added.start }, ...noteFocus(added) });
+  commit({ [lane]: next, selectedNote: { lane, start: added.start }, ...noteFocus(added) }, tag);
 }
 
 export function removeLaneNote(lane, start) {
-  update({ [lane]: removeNote(state[lane], start), selectedNote: null, selected: null });
+  commit({ [lane]: removeNote(state[lane], start), selectedNote: null, selected: null });
 }
 
-export function resizeLaneNote(lane, start, length) {
-  update({ [lane]: resizeNote(state[lane], start, length, state.progression.bars.length) });
+export function resizeLaneNote(lane, start, length, tag = null) {
+  commit({ [lane]: resizeNote(state[lane], start, length, state.progression.bars.length) }, tag);
 }
 
 export function selectLaneNote(ref) {
@@ -221,7 +251,7 @@ export function selectLaneNote(ref) {
   if (note) update({ selectedNote: ref, ...noteFocus(note) });
 }
 
-export const clearLane = (lane) => update({ [lane]: emptyLane(), selectedNote: null });
+export const clearLane = (lane) => commit({ [lane]: emptyLane(), selectedNote: null });
 
 /** Put `chord` (absolute, or null to empty the slot) at `addr`, adding a bar if `addr` is one past the end. */
 export function setSlotChord(addr, chord) {
@@ -239,7 +269,8 @@ export function slotAfter(addr) {
   return nextAddress(state.progression, addr) ?? { bar: state.progression.bars.length, half: 0 };
 }
 
-export const setTempo = (bpm) => updatePlayback({ bpm: Math.max(40, Math.min(200, Math.round(bpm) || 90)) });
+export const setTempo = (bpm) =>
+  commit({ playback: { ...state.playback, bpm: Math.max(40, Math.min(200, Math.round(bpm) || 90)) } });
 export const setLoop = (loop) => updatePlayback({ loop });
 export const setClick = (click) => updatePlayback({ click });
 export const toggleMute = (lane) => update({ mix: toggleMix(state.mix, lane, 'mute') });
@@ -262,3 +293,26 @@ export function setSounding(lane, note, endedStart) {
   if (note === null && sounding[lane]?.start !== endedStart) return;
   updatePlayback({ sounding: { ...sounding, [lane]: note } });
 }
+
+// ---------- Files and undo ----------
+
+/** Step back to the composition before the last edit. */
+export function undo() {
+  const popped = popHistory(state.history);
+  if (popped) update({ ...compositionPatch(popped.snapshot), history: popped.history });
+}
+
+/** Load a parsed file as one undoable edit. */
+export function loadComposition(composition) {
+  commit({ ...compositionPatch(composition), selectedSlot: null, selectedNote: null, pendingImport: null, fileError: null });
+}
+
+/** A parsed file: load it straight away into an empty composition, otherwise ask first. */
+export function offerComposition(composition) {
+  if (hasContent(state)) update({ pendingImport: composition, fileError: null });
+  else loadComposition(composition);
+}
+
+export const confirmImport = () => state.pendingImport && loadComposition(state.pendingImport);
+export const cancelImport = () => update({ pendingImport: null });
+export const setFileError = (error) => update({ fileError: error && { code: error.code, path: error.path }, pendingImport: null });

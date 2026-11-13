@@ -85,6 +85,9 @@ export function createRoll(container, handlers) {
 
   const snap = (tick, grid) => Math.floor(tick / gridTicks(grid)) * gridTicks(grid);
 
+  let gesture = 0;
+  const gestureTag = () => `roll:${lane}:${gesture}`;
+
   svg.addEventListener('pointerdown', (event) => {
     if (!lastState || event.button !== 0) return;
     const at = locate(event);
@@ -94,11 +97,12 @@ export function createRoll(container, handlers) {
     const existing = under && under.midi === at.midi ? under : null; // another row means a new note
     svg.setPointerCapture(event.pointerId);
     svg.focus({ preventScroll: true });
+    gesture += 1; // one press-drag-release: its add and resizes undo together
     if (existing) {
       drag = { start: existing.start, length: existing.length, existing: true, moved: false };
     } else {
       const start = Math.min(snap(at.tick, lastState.grid), geometry.bars * TICKS_PER_BAR - step);
-      onAdd({ start, length: step, midi: at.midi });
+      onAdd({ start, length: step, midi: at.midi }, gestureTag());
       onAudition(at.midi);
       drag = { start, length: step, existing: false, moved: false };
     }
@@ -114,7 +118,7 @@ export function createRoll(container, handlers) {
     if (length !== drag.length) {
       drag.length = length;
       drag.moved = true;
-      onResize(drag.start, length);
+      onResize(drag.start, length, gestureTag());
     }
   });
 

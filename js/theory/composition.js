@@ -251,3 +251,43 @@ export function parseComposition(input) {
     bass: parseLane(raw.bass, 'bass', barCount),
   };
 }
+
+// ---------- Undo history ----------
+
+export const HISTORY_LIMIT = 100;
+
+/**
+ * The undoable part of the session, taken from state as it stands. Lanes and
+ * the progression are never mutated in place, so the snapshot shares them.
+ * `bpm` lives in `playback` in state and flat here, as in the file.
+ */
+export const snapshotComposition = ({ title, rootPc, scaleId, tonicLetter, style, playback, progression, melody, bass }) =>
+  ({ title, rootPc, scaleId, tonicLetter, style, bpm: playback.bpm, progression, melody, bass });
+
+const SNAPSHOT_FIELDS = ['title', 'rootPc', 'scaleId', 'tonicLetter', 'style', 'bpm', 'progression', 'melody', 'bass'];
+
+/** True when no field changed (by identity, which is how edits replace them). */
+export const sameSnapshot = (a, b) => SNAPSHOT_FIELDS.every((f) => a[f] === b[f]);
+
+/**
+ * Record `before` as the state an edit started from. An edit carrying the same
+ * `tag` as the previous one (one drag on the roll) folds into it, so a single
+ * undo reverts the whole gesture. Keeps the newest `limit` entries.
+ * @returns {{ entries: object[], tag: string | null }}
+ */
+export function pushHistory(history, before, tag = null, limit = HISTORY_LIMIT) {
+  if (tag !== null && tag === history.tag && history.entries.length) return history;
+  return { entries: [...history.entries, before].slice(-limit), tag };
+}
+
+/** The newest entry and the history without it, or null when there is nothing to undo. */
+export function popHistory(history) {
+  if (!history.entries.length) return null;
+  return { snapshot: history.entries.at(-1), history: { entries: history.entries.slice(0, -1), tag: null } };
+}
+
+export const emptyHistory = () => ({ entries: [], tag: null });
+
+/** True when the composition has any chord or note worth asking before it is replaced. */
+export const hasContent = ({ progression, melody, bass }) =>
+  melody.notes.length > 0 || bass.notes.length > 0 || progression.bars.some((bar) => bar.chords.some(Boolean));

@@ -1,7 +1,7 @@
 import { playChord, playNote } from './audio/synth.js';
 import { createTransport } from './audio/transport.js';
 import * as store from './state.js';
-import { gridTicks } from './theory/composition.js';
+import { CompositionError, fileName, hasContent, gridTicks, parseComposition, serializeComposition } from './theory/composition.js';
 import { LANGS } from './theory/text/index.js';
 import { createChordPanel } from './ui/chordPanel.js';
 import { createControls } from './ui/controls.js';
@@ -13,6 +13,7 @@ import { createComposerPanel } from './ui/composerPanel.js';
 import { createPiano } from './ui/piano.js';
 import { createRoll } from './ui/roll.js';
 import { createTransportBar } from './ui/transportBar.js';
+import { createFilePrompt } from './ui/filePrompt.js';
 import { createTransposePrompt } from './ui/transposePrompt.js';
 
 const strum = () => store.getState().instrument === 'guitar';
@@ -59,6 +60,37 @@ function startPlayback(from) {
   stopPlayback();
   store.setPlaying(true, from);
   transport.start(from);
+}
+
+// ---------- Files ----------
+
+function exportComposition() {
+  const state = store.getState();
+  const json = JSON.stringify(serializeComposition(state), null, 2);
+  const url = URL.createObjectURL(new Blob([json + '\n'], { type: 'application/json' }));
+  const link = Object.assign(document.createElement('a'), { href: url, download: fileName(state.title) });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function importComposition(file) {
+  let composition;
+  try {
+    composition = parseComposition(await file.text());
+  } catch (error) {
+    if (!(error instanceof CompositionError)) throw error;
+    store.setFileError(error);
+    return;
+  }
+  if (!hasContent(store.getState())) stopPlayback(); // otherwise playback stops when "Replace" is chosen
+  store.offerComposition(composition);
+}
+
+function onConfirmImport() {
+  stopPlayback();
+  store.confirmImport();
 }
 
 function onSelectSlot(addr, chord) {
@@ -116,6 +148,15 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
     store.suggestKey();
   },
   onSolo: store.toggleSolo,
+  onTitle: store.setTitle,
+  onUndo: store.undo,
+  onExport: exportComposition,
+  onImport: importComposition,
+});
+const filePrompt = createFilePrompt(document.querySelector('#file-prompt'), {
+  onConfirm: onConfirmImport,
+  onCancel: store.cancelImport,
+  onDismissError: () => store.setFileError(null),
 });
 const transposePrompt = createTransposePrompt(document.querySelector('#transpose-prompt'), {
   onConfirm: store.confirmTranspose,
@@ -126,9 +167,9 @@ const INSTRUMENT_RANGE = { guitar: [40, 79], piano: [36, 83] };
 const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
   lane: 'melody',
   range: (state) => INSTRUMENT_RANGE[state.instrument],
-  onAdd: (note) => store.addLaneNote('melody', note),
+  onAdd: (note, tag) => store.addLaneNote('melody', note, tag),
   onRemove: (start) => store.removeLaneNote('melody', start),
-  onResize: (start, length) => store.resizeLaneNote('melody', start, length),
+  onResize: (start, length, tag) => store.resizeLaneNote('melody', start, length, tag),
   onSelect: (start) => store.selectLaneNote({ lane: 'melody', start }),
   onAudition: (midi) => midi != null && playNote(midi),
   onClear: () => store.clearLane('melody'),
@@ -170,6 +211,7 @@ store.subscribe((state) => {
   controls.render(state);
   composerSection.hidden = !composer;
   if (composer) {
+    filePrompt.render(state);
     transposePrompt.render(state);
     transportBar.render(state);
     strip.render(state);
@@ -191,6 +233,12 @@ store.subscribe((state) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') store.clearSelection();
   const typing = /^(input|select|textarea)$/i.test(event.target.tagName);
+  const composer = store.getState().mode === 'composer';
+  if (composer && !typing && (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    event.preventDefault();
+    store.undo();
+    return;
+  }
   const { selectedNote } = store.getState();
   if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNote && !typing) {
     event.preventDefault();

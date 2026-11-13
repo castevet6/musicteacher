@@ -1,5 +1,5 @@
-// Playback controls in Composer: play/stop, tempo, loop, click, grid and the
-// per-lane mix. The title, style and file buttons join this bar in later milestones.
+// Composer's top bars: the file row (title, undo, export, import) and the
+// playback row (play/stop, tempo, loop, click, grid, style, key guess, mix).
 
 import { GRIDS, STYLES, isAudible } from '../theory/composition.js';
 import { ui } from './strings.js';
@@ -8,8 +8,18 @@ const MIX_LANES = ['chords', 'melody']; // the bass lane arrives with the bass r
 
 export function createTransportBar(container, {
   onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onStyle, onMute, onSolo, onSuggestKey,
+  onTitle, onUndo, onExport, onImport,
 }) {
   container.innerHTML = `
+    <div class="file-bar" role="group" data-label="aria-label:fileGroup">
+      <label class="field title-field"><span data-label="title"></span>
+        <input type="text" name="title" maxlength="120" autocomplete="off" spellcheck="false">
+      </label>
+      <button type="button" class="btn" data-act="undo" data-label="undo"></button>
+      <button type="button" class="btn" data-act="export" data-label="export"></button>
+      <button type="button" class="btn" data-act="import" data-label="import"></button>
+      <input type="file" name="import" accept=".json,application/json" hidden>
+    </div>
     <div class="transport" role="group" data-label="aria-label:group">
       <button type="button" class="btn play" data-act="play" aria-pressed="false"></button>
       <button type="button" class="btn play-from" data-act="play-from" hidden></button>
@@ -43,6 +53,11 @@ export function createTransportBar(container, {
   const style = $('[name=style]');
   const suggestKey = $('[data-act=suggest-key]');
   const mixLanes = [...container.querySelectorAll('.mix-lane')];
+  const title = $('[name=title]');
+  const undo = $('[data-act=undo]');
+  const exportButton = $('[data-act=export]');
+  const importButton = $('[data-act=import]');
+  const importFile = $('input[name=import]');
   let renderedLang = null;
 
   const lookup = (text, path) => path.split('.').reduce((obj, key) => obj[key], text);
@@ -70,6 +85,23 @@ export function createTransportBar(container, {
   grid.addEventListener('change', () => onGrid(Number(grid.value)));
   style.addEventListener('change', () => onStyle(style.value));
   suggestKey.addEventListener('click', onSuggestKey);
+  title.addEventListener('change', () => onTitle(title.value));
+  title.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') title.blur();
+    if (event.key === 'Escape') {
+      title.value = lastTitle;
+      title.blur();
+    }
+  });
+  undo.addEventListener('click', onUndo);
+  exportButton.addEventListener('click', onExport);
+  importButton.addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', () => {
+    const [file] = importFile.files;
+    importFile.value = ''; // picking the same file again still fires change
+    if (file) onImport(file);
+  });
+  let lastTitle = '';
   for (const el of mixLanes) {
     el.querySelector('[data-mix=mute]').addEventListener('click', () => onMute(el.dataset.lane));
     el.querySelector('[data-mix=solo]').addEventListener('click', () => onSolo(el.dataset.lane));
@@ -94,6 +126,10 @@ export function createTransportBar(container, {
         playFrom.setAttribute('aria-label', text.playFrom(from.bar + 1));
       }
       if (document.activeElement !== bpm) bpm.value = String(state.playback.bpm);
+      lastTitle = state.title;
+      if (document.activeElement !== title) title.value = state.title;
+      title.placeholder = text.untitled;
+      undo.disabled = state.history.entries.length === 0;
       loop.checked = state.playback.loop;
       click.checked = state.playback.click;
       grid.value = String(state.grid);

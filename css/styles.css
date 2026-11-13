@@ -404,7 +404,8 @@ body {
 .check { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 
-.field input[type="number"] {
+.field input[type="number"],
+.field input[type="text"] {
   width: 4.5em;
   min-height: 40px;
   padding: 6px 8px;
@@ -417,6 +418,9 @@ body {
 
 /* ---------- Composer: transport, chord strip, timeline ---------- */
 
+.file-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+.field.title-field { flex: 1 1 220px; }
+.field.title-field input[type="text"] { flex: 1 1 auto; width: auto; min-width: 0; }
 .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 12px; }
 .mix { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .mix-lane { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.85rem; }
@@ -439,6 +443,7 @@ body {
   font-size: 0.9rem;
 }
 .prompt[hidden] { display: none; }
+.prompt.error { border-color: var(--out); background: color-mix(in srgb, var(--out) 8%, var(--surface)); }
 .prompt-text { flex: 1 1 240px; }
 .prompt .btn { min-height: 34px; padding: 4px 12px; margin-top: 0; }
 .strip-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px; }

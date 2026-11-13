@@ -4,6 +4,7 @@ import {
   CompositionError, TICKS_PER_BAR, TICKS_PER_BEAT, addNote, beatWeight, chordAtTick, clampLane, emptyLane,
   fileName, gridTicks, noteAt, parseComposition, removeNote, resizeNote, segmentWeight, segments,
   serializeComposition, slotSpan, transposeLane, LANES, defaultMix, isAudible, notesStarting, toggleMix, transposeDistance,
+  emptyHistory, hasContent, popHistory, pushHistory, sameSnapshot, snapshotComposition,
 } from '../js/theory/composition.js';
 import { emptyProgression, flattenSlots, presetProgression, toggleSplit } from '../js/theory/progression.js';
 import { buildKey } from '../js/theory/scales.js';
@@ -188,4 +189,54 @@ test('mix: solo wins over mute, pressing again releases', () => {
   assert.deepEqual(toggleMix(muted, 'chords', 'mute'), mix);
   // Solo on a muted lane replaces the mute.
   assert.equal(toggleMix(muted, 'chords', 'solo').chords, 'solo');
+});
+
+// ---------- Undo history ----------
+
+const session = () => ({
+  title: 'Tune', rootPc: 3, scaleId: 'major', tonicLetter: 'E', style: 'jazz',
+  playback: { bpm: 120, playing: false }, progression: presetProgression('twoFiveOne'),
+  melody: lane(note(0, Q, 67)), bass: emptyLane(), grid: 8,
+});
+
+test('a snapshot keeps the composition fields and shares the lanes', () => {
+  const s = session();
+  const snap = snapshotComposition(s);
+  assert.deepEqual(Object.keys(snap).sort(),
+    ['bass', 'bpm', 'melody', 'progression', 'rootPc', 'scaleId', 'style', 'title', 'tonicLetter']);
+  assert.equal(snap.bpm, 120);
+  assert.equal(snap.melody, s.melody);
+  assert.ok(sameSnapshot(snap, snapshotComposition({ ...s, grid: 16 })), 'view settings are not undoable');
+  assert.ok(!sameSnapshot(snap, snapshotComposition({ ...s, melody: removeNote(s.melody, 0) })));
+});
+
+test('history: undo returns the newest entry, a repeated tag folds into one entry', () => {
+  const a = { n: 'a' };
+  const b = { n: 'b' };
+  const c = { n: 'c' };
+  let h = pushHistory(emptyHistory(), a);
+  h = pushHistory(h, b, 'roll:melody:1');
+  h = pushHistory(h, c, 'roll:melody:1'); // same drag: folded
+  assert.deepEqual(h.entries, [a, b]);
+  h = pushHistory(h, c, 'roll:melody:2');
+  assert.deepEqual(h.entries, [a, b, c]);
+  const popped = popHistory(h);
+  assert.equal(popped.snapshot, c);
+  assert.deepEqual(popped.history, { entries: [a, b], tag: null });
+  // After an undo the next edit with the old tag still records.
+  assert.equal(pushHistory(popped.history, c, 'roll:melody:2').entries.length, 3);
+  assert.equal(popHistory(emptyHistory()), null);
+});
+
+test('history keeps the newest entries up to its limit', () => {
+  let h = emptyHistory();
+  for (let i = 0; i < 5; i++) h = pushHistory(h, i, null, 3);
+  assert.deepEqual(h.entries, [2, 3, 4]);
+});
+
+test('hasContent: any chord or lane note', () => {
+  const empty = { progression: emptyProgression(4), melody: emptyLane(), bass: emptyLane() };
+  assert.equal(hasContent(empty), false);
+  assert.equal(hasContent({ ...empty, bass: lane(note(0, Q, 40)) }), true);
+  assert.equal(hasContent({ ...empty, progression: presetProgression('twoFiveOne') }), true);
 });

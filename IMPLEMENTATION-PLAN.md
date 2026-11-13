@@ -407,7 +407,7 @@ Out of scope for this section: polyphony, triplets, sections and repeats, melody
 
 ```js
 {
-  version: 1, title: 'Untitled', rootPc: 0, scaleId: 'major', tonicLetter: 'C',
+  version: 1, title: '', rootPc: 0, scaleId: 'major', tonicLetter: 'C',
   style: 'pop', bpm: 90,
   progression: { bars: [{ chords: [RelChord | null] }] },
   melody: { notes: [{ start, length, midi }] },
@@ -566,7 +566,7 @@ Bass, C | G7 looping:
 ```js
 mode: 'explore' | 'composer',
 style: 'pop' | 'jazz' | 'folk',
-title: 'Untitled',
+title: '',                                   // empty shows the localized "Untitled" placeholder
 grid: 8,
 melody: Lane, bass: Lane,
 activeLane: 'chords' | 'melody' | 'bass',    // which roll was touched last
@@ -576,12 +576,16 @@ instrumentCollapsed: false,
 mix: { chords: 'on' | 'mute' | 'solo', melody: ..., bass: ... },
 pendingTranspose: { fromPc, semis } | null,  // set by setRoot when a lane has notes; a second root change re-measures from fromPc
 playback: { ..., playhead: { bar, half }, sounding: { melody: { midi, start } | null, bass: ... } },
-history: Composition[]                       // undo snapshots, milestone 10
+history: { entries: Composition[], tag },    // undo snapshots; edits sharing a tag (one roll drag) fold into one
+pendingImport: Composition | null,           // parsed file waiting for "replace?"
+fileError: { code, path } | null,            // why the last import failed
 ```
 
 Derived: `melodyFit`, `bassFit`, `cellTiers`, `bassTiers`, `critique`, `bassCritique`, `ghosts` (for the selected note's lane), `slotFits`, and `ranking` for the selected slot. Actions: `setStyle`, `setTitle`, `setGrid`, `addLaneNote`, `removeLaneNote`, `resizeLaneNote`, `selectNote`, `setShowMap`, `setMix`, `applyKey` (no transpose), `confirmTranspose`, `dismissTranspose`, `loadComposition`, `applyBassPattern`, `undo`, `setSounding`, `toggleInstrument`.
 
 `setRoot` in Composer with notes in any lane sets `pendingTranspose` to the shortest signed distance (−6…5) and leaves the lanes alone; `confirmTranspose` applies `transposeLane` to both lanes. `setBarCount` runs `clampLane` on both lanes. `setMode` to `explore` stops playback.
+
+Undo covers every edit to the composition: title, key and scale, style, bpm, chords, bars and both lanes, plus loading a file. View settings (grid, map, mix, instrument, selection) are not undoable. Each edit records a snapshot (`snapshotComposition`) before it applies; the roll tags its edits with the gesture, so a click-and-drag that adds and lengthens a note undoes in one step. An edit that changes nothing records nothing. The history keeps the newest 100 entries and lives in memory only.
 
 ### 10.10 UI
 
