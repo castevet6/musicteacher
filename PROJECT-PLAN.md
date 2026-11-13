@@ -29,3 +29,7 @@ The second aim is a composing assistant. In the Composer view the user enters a 
 - Playback lights the sounding notes on the instrument. A guitar shows the bass an octave up on its four low strings, where a bass guitar's notes sit.
 
 All of the above is built. The detailed decisions are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) §10, and the end-to-end check is in §8. Still out of scope: polyphony, triplets and swing, sections and repeats, melody generation, MIDI files and sharing a composition by URL.
+
+## Sound
+
+The Composer's three sounds (chords, melody and bass) can be shaped and balanced. Each lane has a 🎛 button that opens a sound editor. It offers presets (Warm pad, E-piano, Soft lead, Flute and so on) and simple controls: waveform, warmth, brightness, attack/decay/sustain/release and reverb. Changes are heard live, OK keeps them and Cancel reverts them. The Mix group has a level fader per lane and for the metronome. Chords now hold for their whole bar and then fade with an adjustable release. Sounds and levels are saved in the composition file. The design and milestones are in IMPLEMENTATION-PLAN.md §11.

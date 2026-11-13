@@ -638,3 +638,226 @@ Each milestone is a commit, `npm test` green, both languages checked. "Try" is w
 | 14 | Polish: guitar shows bass an octave up on the low strings, 375 px pass of every tab, README and PROJECT-PLAN updates, §8 verification extended with a composer walkthrough. | The verification list runs clean on both instruments at desktop and 375 px. | Full walkthrough. |
 
 Milestones 1–4 build the roll, 5–7 the melody assistant, 8–9 the harmoniser, 10 the files, 11–13 the bass, 14 the finish. Each theory milestone adds its golden rows to the test file named after the module.
+
+## 11. Sound
+
+The user can shape the three Composer sounds (chords, melody, bass) and balance them with a mixer. The work is split into five milestones (§11.10). Read §11.1 before touching any file. Every decision below was settled with the user, so follow the plan rather than inventing variations. If something here is impossible or contradicts the code, stop and report it instead of guessing.
+
+### 11.1 Scope decisions
+
+- **Engine model.** A *patch* is a small plain-data object per lane. Every voice is built from the patch when it is scheduled. Web Audio does the DSP natively, so this adds only a few nodes per note.
+- **Envelope.** Full ADSR for every lane. Sustain > 0 gives a held sound and sustain = 0 gives a plucked one. During playback a chord holds for its whole slot, then releases with the patch's release time, overlapping the next chord. The same chord in two consecutive slots is **struck again**, not tied. A chord or single note clicked outside playback holds for **1 s**, then releases.
+- **Stop** cuts every sounding or scheduled voice, chords included, with a fade of about 0.1 s.
+- **Controls per lane (in the modal):** Preset, Waveform, Warmth, Octave layer, Brightness, Resonance, Attack, Decay, Sustain, Release, Reverb. Moving any control after picking a preset turns the preset to "Custom".
+- **Brightness follows pitch** (fixed key tracking, §11.3). It has no slider of its own.
+- **Presets** are starting points (§11.2). Each lane also has **Classic**, which approximates the sound before this feature. New defaults: chords = Warm pad, melody = Soft lead, bass = Classic (the user likes the current bass).
+- **Mixer:** a level fader per lane (Chords, Melody, Bass) plus **Click** (the metronome), inside the transport bar's existing *Mix* group, next to Mute/Solo. The faders are live and have no OK/Cancel. They go from 0 to 100 with a default of 75, and a double-click resets to 75. There is no master fader. A fader at 0 is not "mute": Mute/Solo stay as they are.
+- **Sound modal:** a 🎛 button per lane (Chords, Melody, Bass; not Click) opens that lane's editor in a native `<dialog>`. Every change is heard live: the next scheduled notes use it and the lane's reverb send changes immediately. **OK** keeps the changes. **Cancel**, Escape and a backdrop click restore the patch as it was when the modal opened. **Reset to default** loads the lane's default preset, and Cancel still reverts that. **▶ Preview** plays a short phrase in the lane's sound. It is disabled while the composition plays, with the hint "Playing — changes are heard live". At ≤600 px the dialog is a full-screen sheet.
+- **Same chord sound everywhere:** one Chord patch is shared by guitar and piano (the guitar still strums), by Explore mode, and by single notes clicked on the instrument (`playNote`). The mixer and the modal exist only in Composer. Explore uses whatever the current Chord patch and level are.
+- **Melody roll audition and melody ghosts** play with the Melody patch (`playLead`), not `playNote`.
+- **Shared reverb:** one `ConvolverNode` with a generated noise impulse (2 s, exponential decay, stereo). Each lane has a send whose amount is the patch's `reverb`.
+- **Persistence:** sounds and levels are saved in the composition file as optional `sounds` and `levels` blocks. `FILE_VERSION` stays **1**. A missing block, or a missing lane inside one, gives the defaults. A block that is present but malformed rejects the whole file with the usual field error (e.g. `sounds.melody.cutoff`). Mute/Solo are not saved. Nothing goes to `localStorage`.
+- **Undo** does not cover sounds or levels. The modal's Cancel is their undo. Importing a file sets sounds and levels, and undoing the import restores the notes but leaves the imported sounds.
+- **Where the code lives:** pure data and functions in `js/theory/sounds.js` (importable by Node, tested); Web Audio in `js/audio/synth.js`; the modal in `js/ui/soundEditor.js`; faders in `js/ui/transportBar.js`.
+
+### 11.2 Patch model (`js/theory/sounds.js`)
+
+A patch:
+
+```js
+/** @typedef {{ preset: string, wave: 'sine'|'triangle'|'square'|'sawtooth', warmth: number, octave: number,
+ *   cutoff: number, resonance: number, attack: number, decay: number, sustain: number, release: number, reverb: number }} Patch */
+```
+
+`preset` is a preset id of the patch's lane, or `'custom'`.
+
+Parameter table (export as `SOUND_PARAMS`, in this order, which is also the order of the modal controls after Preset):
+
+| param | kind | min | max | step | unit | meaning |
+|---|---|---|---|---|---|---|
+| `wave` | choice: `WAVES = ['sine','triangle','square','sawtooth']` | | | | | oscillator waveform |
+| `warmth` | number | 0 | 25 | 1 | cents | two oscillators detuned by ±warmth/2 cents |
+| `octave` | number | 0 | 1 | 0.01 | gain | a sine one octave up, mixed in at this gain |
+| `cutoff` | number, log slider | 200 | 8000 | — | Hz | low-pass cutoff at the lane's reference pitch |
+| `resonance` | number | 0 | 15 | 0.1 | dB | low-pass Q (BiquadFilter lowpass Q is in dB) |
+| `attack` | number | 0 | 1 | 0.001 | s | time to peak |
+| `decay` | number | 0.05 | 2 | 0.01 | s | time to settle to sustain |
+| `sustain` | number | 0 | 1 | 0.01 | × peak | level held while the note lasts |
+| `release` | number | 0.02 | 3 | 0.01 | s | fade after the note ends |
+| `reverb` | number | 0 | 1 | 0.01 | send | reverb send amount |
+
+Presets: export `SOUND_PRESETS = { chords: {...}, melody: {...}, bass: {...} }`. Each entry maps a preset id to the param values (without `preset`). Insertion order is the order of the dropdown. Export `DEFAULT_PRESET = { chords: 'warmPad', melody: 'softLead', bass: 'classic' }`.
+
+| lane | id | wave | warmth | octave | cutoff | res | A | D | S | R | reverb |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| chords | `warmPad` | triangle | 8 | 0.15 | 1800 | 1 | 0.04 | 0.6 | 0.7 | 0.9 | 0.3 |
+| chords | `epiano` | sine | 4 | 0.35 | 3000 | 0 | 0.005 | 1.2 | 0.35 | 0.6 | 0.2 |
+| chords | `organ` | sine | 2 | 0.6 | 4000 | 0 | 0.01 | 0.1 | 1 | 0.12 | 0.25 |
+| chords | `pluck` | triangle | 0 | 0.3 | 2500 | 2 | 0.003 | 0.9 | 0 | 0.3 | 0.15 |
+| chords | `classic` | triangle | 0 | 0.3 | 8000 | 0 | 0.005 | 1.5 | 0 | 0.3 | 0 |
+| melody | `softLead` | sawtooth | 5 | 0 | 1600 | 1 | 0.015 | 0.4 | 0.7 | 0.15 | 0.25 |
+| melody | `flute` | sine | 3 | 0.1 | 3000 | 0 | 0.06 | 0.2 | 0.85 | 0.15 | 0.3 |
+| melody | `squareLead` | square | 4 | 0 | 2000 | 3 | 0.01 | 0.3 | 0.6 | 0.1 | 0.2 |
+| melody | `brightSaw` | sawtooth | 8 | 0 | 5000 | 4 | 0.01 | 0.3 | 0.6 | 0.1 | 0.15 |
+| melody | `classic` | sawtooth | 0 | 0 | 3100 | 0.7 | 0.01 | 0.75 | 0.6 | 0.15 | 0 |
+| bass | `classic` | sine | 0 | 0.35 | 900 | 0.5 | 0.008 | 1.0 | 0.68 | 0.2 | 0 |
+| bass | `round` | sine | 3 | 0.15 | 600 | 0 | 0.01 | 0.8 | 0.8 | 0.15 | 0.05 |
+| bass | `pluckBass` | triangle | 0 | 0.3 | 1200 | 3 | 0.003 | 0.6 | 0.2 | 0.12 | 0.05 |
+| bass | `synthBass` | sawtooth | 6 | 0 | 700 | 6 | 0.005 | 0.4 | 0.5 | 0.1 | 0.05 |
+
+These values are a starting point. Milestone 5 tunes them by ear with the user.
+
+Functions (all pure, named exports):
+
+- `SOUND_LANES = ['chords', 'melody', 'bass']`, `LEVEL_LANES = ['chords', 'melody', 'bass', 'click']`, `DEFAULT_LEVEL = 75`.
+- `presetPatch(lane, id)` returns `{ preset: id, ...SOUND_PRESETS[lane][id] }` as a new object.
+- `defaultSounds()` returns `{ chords, melody, bass }` built from `DEFAULT_PRESET`.
+- `defaultLevels()` returns `{ chords: 75, melody: 75, bass: 75, click: 75 }`.
+- `withParam(patch, param, value)` returns a new patch with `param` set and `preset: 'custom'`. Numbers are clamped to [min, max] and rounded to `step` (cutoff rounded to whole Hz). An unknown wave keeps the old one. If the value equals the current one, it returns the same patch unchanged (preset kept).
+- `levelGain(level)` returns `(level / 75) ** 2`, so 75 gives 1, 0 gives 0 and 100 gives about 1.78.
+- `cutoffFromSlider(x)` (x 0–100) returns `Math.round(200 * 40 ** (x / 100))`; `sliderFromCutoff(hz)` is its inverse, rounded to 0.1.
+- `TRACK_REF = { chords: 60, melody: 72, bass: 40 }` (MIDI) and `trackedCutoff(cutoff, midi, lane)` returns `cutoff * 2 ** ((midi - TRACK_REF[lane]) / 24)`, clamped to [80, 16000]. This is half-octave tracking: one octave up opens the filter by √2.
+- `envelopeSchedule({ attack, decay, sustain, release }, start, duration, peak)` returns `{ events, stopAt }`, where each event is `{ type: 'set'|'linear'|'target', value, time, tau? }`:
+  - `end = start + Math.max(0.05, duration)`; `attackEnd = start + Math.max(0.003, attack)`; `rampEnd = Math.min(attackEnd, end)`; `rampPeak = peak * (rampEnd - start) / (attackEnd - start)`.
+  - events: `set 0 @ start`, `linear rampPeak @ rampEnd`. If `rampEnd < end`, add `target peak*sustain @ rampEnd, tau = decay / 5`. Always add `target 0 @ end, tau = Math.max(release, 0.01) / 5`.
+  - `stopAt = end + Math.max(release, 0.01) + 0.05`.
+- `parseSounds(raw, path = 'sounds')` and `parseLevels(raw, path = 'levels')` validate a file block. `undefined` gives the defaults. A lane key that is missing gives that lane's default. A present lane must be an object with **every** param valid (`wave` in `WAVES`, numbers finite and within [min, max]) and a `preset` that is `'custom'` or a key of that lane's presets. Otherwise call `fail('<path>.<lane>.<param>')`. `fail` is the last argument: `parseSounds(raw, path, fail)`. `composition.js` passes its own `fail` (which throws `CompositionError('field', path)`), so `sounds.js` never imports `composition.js` and there is no circular import. Tests pass `(p) => { throw new Error(p); }` and check the message.
+- `previewPhrase(key, lane)` returns the events of the Preview button, `[{ at, duration, midi } | { at, duration, chord }]`, with `at` in seconds from now:
+  - chords: `diatonicChords(key)` triads (kind `'triad'`) on degrees 0, 3, 4, 0, giving `{ at: i * 1.0, duration: 0.9, chord }`;
+  - melody: tonic MIDI `60 + key.rootPc`. Take the first 5 scale notes ascending from it (pcs of `key.scaleNotes` in order, lifted so each is above the previous), then come back down: 9 notes, `at: i * 0.3`, `duration: 0.28`;
+  - bass: root `36 + key.rootPc`, notes root, root+7, root+12, root+7, root, `at: i * 0.4`, `duration: 0.35`.
+
+### 11.3 Engine (`js/audio/synth.js`)
+
+The routing graph is created once in `context()`:
+
+```
+voice → laneBus[lane] (gain = levelGain(level)) → master (0.3) → destination
+                    ↘ send[lane] (gain = patch.reverb) → reverb (Convolver) → master
+click voice → laneBus.click → master
+```
+
+- `laneBus` and `send` are created for every lane in `SOUND_LANES`, and `laneBus.click` for the metronome. The reverb impulse is generated in code: 2 s stereo buffer, `(Math.random() * 2 - 1) * (1 - t / length) ** 3` per sample, `convolver.normalize = true`.
+- Module state: `let sounds = defaultSounds(); let levels = defaultLevels();`. Export `setSoundConfig(nextSounds, nextLevels)`, which stores them and, if the context exists, applies the bus gains and sends with `setTargetAtTime(value, ctx.currentTime, 0.02)`. `context()` applies the current values right after creating the graph. The synth never imports `state.js`.
+- One generic voice: `voice(lane, midi, start, duration, peakScale = 1)`:
+  - `patch = sounds[lane]`, `freq = midiToFreq(midi)`;
+  - two oscillators of `patch.wave` at `freq`, `detune` −warmth/2 and +warmth/2 cents, each through a gain of 0.5. If `patch.octave > 0`, add a sine at `2 * freq` through a gain of `patch.octave`;
+  - all of them go into a `BiquadFilter` (`lowpass`, `frequency = trackedCutoff(patch.cutoff, midi, lane)`, `Q = patch.resonance`), then the envelope gain, then `laneBus[lane]` and `send[lane]`;
+  - envelope: apply `envelopeSchedule(patch, start, duration, LANE_PEAK[lane] * WAVE_GAIN[patch.wave] * peakScale).events` with `setValueAtTime`, `linearRampToValueAtTime` and `setTargetAtTime`;
+  - start all oscillators at `start` and stop them at `stopAt`; track `{ env, oscs }` in the `voices` set (rename `leads`) and delete it on the first oscillator's `onended`;
+  - `WAVE_GAIN = { sine: 1, triangle: 0.9, square: 0.45, sawtooth: 0.55 }` and `LANE_PEAK = { chords: 0.7, melody: 1.6, bass: 1.1 }`. Chord notes are 3–4 voices at 0.7, which is the same as today.
+- Public API (keep the names so callers barely change):
+  - `playNote(midi, { when, duration = 1 } = {})` uses the chords lane;
+  - `playChord(chord, { strum = false, when, duration = 1 } = {})`: each note of `closeVoicing(chord)` starts at `start + (strum ? i * STRUM_DELAY : 0)`, and all end at `start + duration` (so duration per note is `duration - offset`);
+  - `playLead(midi, { when, duration = 0.5 })` and `playBass(...)` use the melody and bass lanes;
+  - `stopAll()` (rename `stopLeads`; update `transport.js`) cuts every tracked voice: `cancelScheduledValues(now)`, `setValueAtTime(env.gain.value, now)`, `setTargetAtTime(0, now, 0.02)`, and oscillators stop at `now + 0.1`;
+  - `playClick(when, accent)` connects to `laneBus.click` instead of `master`. Its sound is unchanged;
+  - `playPreview(lane, events)`: for each event, call `playChord(e.chord, { when: now + e.at, duration: e.duration })` (chords) or `playLead`/`playBass` with `when: now + e.at`.
+- `transport.js`: `playChord(slot.chord, { strum, when: nextTime, duration: slot.beats * beat })`, and `stop()` calls `stopAll()`.
+
+### 11.4 State (`js/state.js`)
+
+New fields: `sounds: defaultSounds()`, `levels: defaultLevels()`, `soundEditor: null` (or `{ lane, before }` while the modal is open, where `before` is the lane's patch when it opened).
+
+New actions (name them exactly like this; `setLevel` already exists for beginner/intermediate):
+
+- `setMixLevel(lane, level)` clamps to an integer 0–100 and calls `update({ levels: { ...state.levels, [lane]: level } })`.
+- `openSoundEditor(lane)` sets `{ soundEditor: { lane, before: state.sounds[lane] } }`.
+- `setSoundParam(param, value)` applies `withParam` to the open lane's patch. It does nothing when `soundEditor` is null or the patch is unchanged.
+- `applySoundPreset(id)` sets the open lane's patch to `presetPatch(lane, id)`.
+- `resetSound()` applies `applySoundPreset(DEFAULT_PRESET[lane])`.
+- `confirmSoundEditor()` sets `{ soundEditor: null }`.
+- `cancelSoundEditor()` restores `sounds[lane] = before` and sets `soundEditor: null`.
+- `loadComposition(c)` also sets `sounds: c.sounds, levels: c.levels, soundEditor: null`. Do **not** add sounds or levels to `compositionPatch`, `snapshotComposition` or `SNAPSHOT_FIELDS` (undo must not touch them).
+
+None of these go through `commit`. They are not undoable.
+
+### 11.5 File (`js/theory/composition.js`)
+
+- `serializeComposition` also destructures `sounds = defaultSounds()` and `levels = defaultLevels()` and writes `sounds: { chords: {...}, melody: {...}, bass: {...} }` (copies) and `levels: { ...levels }`.
+- `parseComposition` returns `sounds: parseSounds(raw.sounds, 'sounds', fail)` and `levels: parseLevels(raw.levels, 'levels', fail)`. `FILE_VERSION` stays 1.
+- The error message for a field (`files.error`) already names the path, so no new strings are needed.
+
+### 11.6 Mixer (`js/ui/transportBar.js`)
+
+- `MIX_LANES` stays `['chords', 'melody', 'bass']`. Each `.mix-lane` gets, after the Solo button, `<input type="range" class="mix-level" name="level-<lane>" min="0" max="100" step="1">` and `<button type="button" class="btn mix-btn mix-edit" data-act="sound">🎛</button>`. Add a fourth `.mix-lane[data-lane=click]` with only the name and the fader.
+- The `input` event on a fader calls `onMixLevel(lane, Number(value))`, and `dblclick` calls `onMixLevel(lane, 75)`. 🎛 calls `onEditSound(lane)`.
+- `render` sets `fader.value` from `state.levels` unless that fader is focused **and** being dragged (simplest: skip when `document.activeElement === fader`). Aria labels: `text.levelLane(name)` and `text.editSound(name)`.
+- CSS: `--fader-width: 80px` in `:root`, and `.mix-level { width: var(--fader-width); accent-color: var(--accent); }`. At `max-width: 600px`, `.mix` becomes a 2-column grid of lanes and `--fader-width: 64px`. Acceptance: no horizontal page scroll at 375 px.
+
+### 11.7 Sound modal (`js/ui/soundEditor.js`)
+
+- `createSoundEditor(container, { onParam, onPreset, onReset, onConfirm, onCancel, onPreview })` builds a `<dialog class="sound-editor">` once, appended to `document.body`, with:
+  - a heading `text.title(lane)`;
+  - a Preset `<select>` with the lane's presets plus a `custom` option that is hidden unless the patch's preset is `'custom'`;
+  - a Waveform `<select>`;
+  - one row per number param: `<label>` with the name (and `title` = the technical-term tooltip), `<input type=range>` and an `<output>` with the formatted value. Brightness uses a 0–100 slider through `cutoffFromSlider`/`sliderFromCutoff`;
+  - a hint line (shown while playing);
+  - the buttons ▶ Preview, Reset to default, Cancel and OK.
+- Rebuild the preset options when the lane changes. Slider `input` calls `onParam(param, value)` (live).
+- `render(state)`: if `state.soundEditor` is set and `!dialog.open`, call `dialog.showModal()`; if it's null and the dialog is open, call `dialog.close()`. Fill every control from `state.sounds[lane]`, skipping the focused slider. Disable Preview and show the hint when `state.playback.playing`.
+- Escape fires the dialog's `cancel` event: `preventDefault()` then `onCancel()`. A click whose `target === dialog` (the backdrop) calls `onCancel()`. Never call `dialog.close()` in event handlers. Only `render` closes it, so state stays the single source of truth.
+- `formatParam(param, value, lang)` uses `Intl.NumberFormat(lang === 'fi' ? 'fi-FI' : 'en-US', { maximumFractionDigits })`: cutoff → "1.8 kHz"/"650 Hz", times → "40 ms" below 1 s else "1.2 s", sustain/octave/reverb → "70 %", warmth → "8 ct", resonance → "3.0 dB". Export it and put its tests in `test/soundEditor.test.js`. It must stay DOM-free: do not touch `document` at module top level.
+- CSS: the dialog uses `var(--surface)`, `var(--text)`, `var(--radius)`, a width of min(440px, 100vw − 32px), and a `::backdrop` with rgba(0,0,0,.4). At `max-width: 600px` it takes width 100vw, height 100dvh, max-height 100dvh, margin 0 and border-radius 0. The rows are a 3-column grid (label | slider | value).
+- `main.js` wiring: `onEditSound: store.openSoundEditor`, `onMixLevel: store.setMixLevel`, `onParam: store.setSoundParam`, `onPreset: store.applySoundPreset`, `onReset: store.resetSound`, `onConfirm: store.confirmSoundEditor`, `onCancel: store.cancelSoundEditor`, `onPreview: (lane) => playPreview(lane, previewPhrase(store.getState().key, lane))`. In the subscriber, call `setSoundConfig(state.sounds, state.levels)` whenever either reference changed since the last call (both modes), and `soundEditor.render(state)`. The melody roll `onAudition` and melody ghost placement use `playLead(midi, { duration: 0.4 })`.
+
+### 11.8 Strings (`js/ui/strings.js`)
+
+Add these to `en` and `fi` with the same shape (the i18n test checks it).
+
+`transport` gets three additions:
+
+```js
+// en
+levelLane: (lane) => `${lane} level`,
+editSound: (lane) => `Edit the ${lane.toLowerCase()} sound`,
+lanes: { chords: 'Chords', melody: 'Melody', bass: 'Bass', click: 'Click' },
+// fi
+levelLane: (lane) => `Taso: ${lane.toLowerCase()}`,
+editSound: (lane) => `Muokkaa ääntä: ${lane.toLowerCase()}`,
+lanes: { chords: 'Soinnut', melody: 'Melodia', bass: 'Basso', click: 'Metronomi' },
+```
+
+New top-level `sound`:
+
+| key | en | fi |
+|---|---|---|
+| `title.chords/melody/bass` | Chord sound / Melody sound / Bass sound | Sointujen ääni / Melodian ääni / Basson ääni |
+| `preset` | Preset | Esiasetus |
+| `custom` | Custom | Mukautettu |
+| `presets.chords.*` | Warm pad, E-piano, Organ, Pluck, Classic | Lämmin matto, Sähköpiano, Urut, Näppäily, Klassinen |
+| `presets.melody.*` | Soft lead, Flute, Square lead, Bright saw, Classic | Pehmeä liidi, Huilu, Kanttiliidi, Kirkas saha, Klassinen |
+| `presets.bass.*` | Classic, Round, Pluck bass, Synth bass | Klassinen, Pyöreä, Näppäilybasso, Syntikkabasso |
+| `params.*` | Waveform, Warmth, Octave layer, Brightness, Resonance, Attack, Decay, Sustain, Release, Reverb | Aaltomuoto, Lämpö, Oktaavikerros, Kirkkaus, Resonanssi, Nousu, Vaimeneminen, Kestotaso, Häivytys, Kaiku |
+| `tips.*` (tooltips) | Oscillator waveform; Detune between two oscillators; A sine one octave up; Low-pass filter cutoff; Filter resonance (Q); Attack time; Decay time; Sustain level; Release time; Reverb send | Oskillaattorin aaltomuoto; Kahden oskillaattorin epävireisyys (detune); Sini oktaavia ylempänä; Alipäästösuotimen rajataajuus (cutoff); Suotimen resonanssi (Q); Nousuaika (attack); Vaimenemisaika (decay); Kestotaso (sustain); Häivytysaika (release); Kaiun määrä (reverb) |
+| `waves.*` | Sine, Triangle, Square, Sawtooth | Sini, Kolmio, Kantti, Saha |
+| `preview` | ▶ Preview | ▶ Kuuntele |
+| `playingHint` | Playing — changes are heard live | Soitto käynnissä — muutokset kuuluvat heti |
+| `ok` / `cancel` / `reset` | OK / Cancel / Reset to default | OK / Peruuta / Palauta oletus |
+
+### 11.9 Golden tests (`test/sounds.test.js`)
+
+- `defaultSounds()`: chords preset `warmPad`, melody `softLead`, bass `classic`. Every preset of every lane passes `parseSounds` (round-trip each one as a lane block).
+- `withParam(p, 'cutoff', 99999).cutoff === 8000`; `withParam(p, 'attack', -1).attack === 0`; `withParam(p, 'warmth', 7.6).warmth === 8`; any change sets `preset: 'custom'`; the same value returns the identical object; `withParam(p, 'wave', 'noise').wave === p.wave`.
+- `levelGain(75) === 1`, `levelGain(0) === 0`, `levelGain(100)` ≈ 1.778.
+- `cutoffFromSlider(0) === 200`, `cutoffFromSlider(100) === 8000`, `cutoffFromSlider(50) === 1265`; `cutoffFromSlider(sliderFromCutoff(1800))` is within 2 Hz of 1800.
+- `trackedCutoff(1000, 60, 'chords') === 1000`; `trackedCutoff(1000, 72, 'chords')` ≈ 1414.2; `trackedCutoff(1000, 40, 'bass') === 1000`; `trackedCutoff(8000, 120, 'chords') === 16000` (clamped).
+- `envelopeSchedule({attack:0.1, decay:0.5, sustain:0.5, release:1}, 2, 1, 0.8)` deep-equals: events `[{set 0 @2}, {linear 0.8 @2.1}, {target 0.4 @2.1 tau 0.1}, {target 0 @3 tau 0.2}]`, `stopAt` 4.05 (compare numbers with a 1e-9 tolerance).
+- A short note: `envelopeSchedule({attack:0.2, decay:0.5, sustain:0.5, release:0.5}, 0, 0.1, 1)` gives a linear ramp to 0.5 at 0.1, **no** decay event, release target at 0.1, `stopAt` 0.65.
+- Duration below 0.05 is lengthened to 0.05.
+- `parseSounds(undefined)` deep-equals `defaultSounds()`; `parseSounds({ melody: presetPatch('melody','flute') })` keeps the chords and bass defaults; `{ melody: { ...flute, cutoff: 'banana' } }` fails at `sounds.melody.cutoff`; `{ bass: { ...classic, preset: 'warmPad' } }` fails at `sounds.bass.preset`; `{ chords: { ...warmPad, wave: 'noise' } }` fails at `sounds.chords.wave`; `parseLevels({ melody: 101 })` fails at `levels.melody`; `parseLevels({ click: 40 })` gives 75s with click 40.
+- `previewPhrase(buildKey(0,'major'), 'melody')` midis `[60,62,64,65,67,65,64,62,60]`; `'bass'` `[36,43,48,43,36]`; `'chords'` gives roots C, F, G, C with quality `maj` (check `chordLabel`); in A minor (`buildKey(9,'minor')`) the chords are Am, Dm, Em, Am.
+- In `test/composition.test.js`: a round trip keeps a custom melody patch and levels; a file without `sounds`/`levels` parses to the defaults; the existing "rejects every bad field" table gets the rows `sounds.melody.cutoff` and `levels.bass`.
+- `test/soundEditor.test.js`: `formatParam('cutoff', 1800, 'en') === '1.8 kHz'`, `formatParam('cutoff', 1800, 'fi') === '1,8 kHz'`, `formatParam('cutoff', 650, 'en') === '650 Hz'`, `formatParam('attack', 0.04, 'en') === '40 ms'`, `formatParam('release', 1.2, 'en') === '1.2 s'`, `formatParam('sustain', 0.7, 'en') === '70 %'`.
+
+### 11.10 Milestones
+
+Each milestone is one commit on `feature/sound`, with `npm test` green, and both languages present for every new string. Browser checks are Playwright scripts in `~/musicteacher-e2e/` named `sound-mN.mjs`, written in the style of `composer-m14.mjs` (headless chromium, `--autoplay-policy=no-user-gesture-required`, collect `pageerror` and console errors, run with `node sound-mN.mjs 1400` and `node sound-mN.mjs 375` while `npm run serve` is up, and print `OK`/`FAIL` lines). Run them one at a time. Nobody can hear audio in these checks, so they check state, DOM and errors only.
+
+| # | Work | Done when | Browser check |
+|---|---|---|---|
+| 1 | `js/theory/sounds.js` (§11.2), file blocks in `composition.js` (§11.5), `test/sounds.test.js` and composition test rows (§11.9). One line in AGENTS.md Architecture: "`js/theory/sounds.js` holds the sound patches, presets and level curve: pure data, so it lives with theory." | All §11.9 sound and composition goldens pass. | None. Run the existing `composer-walk.mjs 1400 piano` to be sure import/export still work. |
+| 2 | Engine (§11.3), `transport.js` changes, state fields and actions (§11.4), `setSoundConfig` and audition wiring in `main.js`. No new UI yet. | Tests green. The page plays chords held to slot length with the new default sounds. Stop silences chords too. | `sound-m2.mjs`: load a preset progression and add a few melody and bass notes, Play for 3 s, Stop, click a chord in Explore, click an instrument note. There must be no page errors. |
+| 3 | Mixer faders and 🎛 buttons in the transport bar (§11.6), strings `levelLane`, `editSound`, `lanes.click`. 🎛 only calls `openSoundEditor` (no modal yet). | Faders show 75, a drag changes `levels`, and a double-click resets. No horizontal scroll at 375 px. | `sound-m3.mjs`: set the melody fader to 30, export, and check that the downloaded JSON has `levels.melody === 30`. Double-click and check 75. Check `scrollWidth <= innerWidth` at 375. Take screenshots in both languages. |
+| 4 | Sound modal (§11.7), `sound` strings (§11.8), `test/soundEditor.test.js`. | The modal opens from each 🎛. Sliders change the sound live. OK keeps the change, and Cancel, Escape and a backdrop click all revert. Reset loads the default preset. Preview is disabled while playing. The modal is full-screen at 375 px. | `sound-m4.mjs`: open the melody editor, pick Flute, move Brightness, press Cancel, export, and check `sounds.melody.preset === 'softLead'`. Then open it again, pick Flute, press OK, export, and check `'flute'`. Open the editor, press Escape and check the dialog is closed. Open it, press Play in the transport, and check Preview is disabled. Import the exported file back and check the melody preset is still `flute`. Take screenshots of the modal at 1400 and 375 in EN and FI. |
+| 5 | Polish: tune the preset values with the user listening, update README and PROJECT-PLAN with a "Sound" paragraph, and add steps to §8 verification. | The user approves the sounds by ear. | Run the full `composer-walk.mjs` plus `sound-m2..m4` at both widths. |
