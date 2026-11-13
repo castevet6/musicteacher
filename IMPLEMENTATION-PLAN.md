@@ -330,6 +330,13 @@ Composer walkthrough (§10). Run it on guitar and on piano, at desktop width and
 14. Export, press Clear on both rolls, Import the file and confirm: the title, style, bpm, chords and both lanes return. Delete a note and Undo it.
 15. Switch to Beginner: only rules 1, 3 and 5 stay in the Melody list. Switch to Suomi: every tab, the legend and the remarks are in Finnish, and B natural reads H.
 
+Sound walkthrough (§11). Scripted checks: `~/musicteacher-e2e/sound-m2.mjs`, `sound-m3.mjs` and `sound-m4.mjs` at 1400 and 375.
+
+16. Play a looping progression: each chord rings until the next one and then fades. Stop silences chords, melody and bass at once.
+17. Drag the Melody fader to 0 and back while playing, then double-click it: it returns to 75. Export and check `levels` in the file.
+18. Open the melody 🎛, pick Flute and move Brightness while playing: the change is heard on the next notes and the preset reads Custom. Cancel brings back the earlier sound. Then pick Flute, press OK, export, import: Flute returns.
+19. With playback stopped, ▶ Preview plays a short phrase in each lane's sound. While playing, Preview is disabled and the hint shows. At 375 px the editor fills the screen.
+
 ## 9. Progression mode
 
 A header toggle switches between **Explore** (§1–§8) and **Progression**. Key, scale and instrument are shared.
@@ -706,6 +713,8 @@ Presets: export `SOUND_PRESETS = { chords: {...}, melody: {...}, bass: {...} }`.
 | bass | `synthBass` | sawtooth | 6 | 0 | 700 | 6 | 0.005 | 0.4 | 0.5 | 0.1 | 0.05 |
 
 These values are a starting point. Milestone 5 tunes them by ear with the user.
+
+Milestone 5 listening result: the user approved the held chords, the Warm pad release, the melody balance, Classic bass and the 75 % levels. The reverb was too present, so every preset's reverb was halved: warmPad 0.15, epiano 0.1, organ 0.12, pluck 0.08, softLead 0.12, flute 0.15, squareLead 0.1, brightSaw 0.08, round/pluckBass/synthBass 0.03. The Classic presets keep 0.
 
 Functions (all pure, named exports):
 

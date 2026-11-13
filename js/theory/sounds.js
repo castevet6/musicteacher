@@ -41,24 +41,24 @@ const values = (wave, warmth, octave, cutoff, resonance, attack, decay, sustain,
 /** Presets per lane. Insertion order is the dropdown order. */
 export const SOUND_PRESETS = {
   chords: {
-    warmPad: values('triangle', 8, 0.15, 1800, 1, 0.04, 0.6, 0.7, 0.9, 0.3),
-    epiano: values('sine', 4, 0.35, 3000, 0, 0.005, 1.2, 0.35, 0.6, 0.2),
-    organ: values('sine', 2, 0.6, 4000, 0, 0.01, 0.1, 1, 0.12, 0.25),
-    pluck: values('triangle', 0, 0.3, 2500, 2, 0.003, 0.9, 0, 0.3, 0.15),
+    warmPad: values('triangle', 8, 0.15, 1800, 1, 0.04, 0.6, 0.7, 0.9, 0.15),
+    epiano: values('sine', 4, 0.35, 3000, 0, 0.005, 1.2, 0.35, 0.6, 0.1),
+    organ: values('sine', 2, 0.6, 4000, 0, 0.01, 0.1, 1, 0.12, 0.12),
+    pluck: values('triangle', 0, 0.3, 2500, 2, 0.003, 0.9, 0, 0.3, 0.08),
     classic: values('triangle', 0, 0.3, 8000, 0, 0.005, 1.5, 0, 0.3, 0),
   },
   melody: {
-    softLead: values('sawtooth', 5, 0, 1600, 1, 0.015, 0.4, 0.7, 0.15, 0.25),
-    flute: values('sine', 3, 0.1, 3000, 0, 0.06, 0.2, 0.85, 0.15, 0.3),
-    squareLead: values('square', 4, 0, 2000, 3, 0.01, 0.3, 0.6, 0.1, 0.2),
-    brightSaw: values('sawtooth', 8, 0, 5000, 4, 0.01, 0.3, 0.6, 0.1, 0.15),
+    softLead: values('sawtooth', 5, 0, 1600, 1, 0.015, 0.4, 0.7, 0.15, 0.12),
+    flute: values('sine', 3, 0.1, 3000, 0, 0.06, 0.2, 0.85, 0.15, 0.15),
+    squareLead: values('square', 4, 0, 2000, 3, 0.01, 0.3, 0.6, 0.1, 0.1),
+    brightSaw: values('sawtooth', 8, 0, 5000, 4, 0.01, 0.3, 0.6, 0.1, 0.08),
     classic: values('sawtooth', 0, 0, 3100, 0.7, 0.01, 0.75, 0.6, 0.15, 0),
   },
   bass: {
     classic: values('sine', 0, 0.35, 900, 0.5, 0.008, 1.0, 0.68, 0.2, 0),
-    round: values('sine', 3, 0.15, 600, 0, 0.01, 0.8, 0.8, 0.15, 0.05),
-    pluckBass: values('triangle', 0, 0.3, 1200, 3, 0.003, 0.6, 0.2, 0.12, 0.05),
-    synthBass: values('sawtooth', 6, 0, 700, 6, 0.005, 0.4, 0.5, 0.1, 0.05),
+    round: values('sine', 3, 0.15, 600, 0, 0.01, 0.8, 0.8, 0.15, 0.03),
+    pluckBass: values('triangle', 0, 0.3, 1200, 3, 0.003, 0.6, 0.2, 0.12, 0.03),
+    synthBass: values('sawtooth', 6, 0, 700, 6, 0.005, 0.4, 0.5, 0.1, 0.03),
   },
 };
 
