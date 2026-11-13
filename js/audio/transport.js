@@ -5,7 +5,7 @@
 
 import { TICKS_PER_BEAT, isAudible, notesStarting, slotSpan } from '../theory/composition.js';
 import { nextAddress } from '../theory/progression.js';
-import { context, playBass, playChord, playClick, playLead, stopLeads } from './synth.js';
+import { context, playBass, playChord, playClick, playLead, stopAll } from './synth.js';
 
 const TICK_MS = 25;
 const LOOKAHEAD = 0.1; // seconds scheduled ahead of the audio clock
@@ -47,7 +47,9 @@ export function createTransport({ getState, onPlayhead, onSounding, onEnd }) {
     const beat = 60 / playback.bpm;
     const secPerTick = beat / TICKS_PER_BEAT;
     const span = slotSpan(slot);
-    if (slot.chord && isAudible(mix, 'chords')) playChord(slot.chord, { strum: instrument === 'guitar', when: nextTime });
+    if (slot.chord && isAudible(mix, 'chords')) {
+      playChord(slot.chord, { strum: instrument === 'guitar', when: nextTime, duration: slot.beats * beat });
+    }
     if (playback.click) {
       for (let b = 0; b < slot.beats; b++) playClick(nextTime + b * beat, slot.half === 0 && b === 0);
     }
@@ -89,7 +91,7 @@ export function createTransport({ getState, onPlayhead, onSounding, onEnd }) {
       timeouts = [];
       position = null;
       schedule = [];
-      stopLeads();
+      stopAll();
     },
     /** The tick now sounding, for the playhead; null when nothing is scheduled. */
     tick() {

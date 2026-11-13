@@ -16,6 +16,7 @@ import { cellTiers, laneFit } from './theory/melodyFit.js';
 import { suggestNextNotes } from './theory/nextNote.js';
 import { buildKey } from './theory/scales.js';
 import { suggestChords } from './theory/suggest.js';
+import { DEFAULT_PRESET, defaultLevels, defaultSounds, presetPatch, withParam } from './theory/sounds.js';
 import { DEFAULT_LANG } from './theory/text/index.js';
 
 const listeners = new Set();
@@ -44,6 +45,9 @@ let state = derive({
   selectedNote: null, // { lane: 'melody' | 'bass', start }
   showMap: true, // paint the fit map behind the roll
   mix: defaultMix(), // per lane: 'on' | 'mute' | 'solo'
+  sounds: defaultSounds(), // per sound lane: a patch (js/theory/sounds.js)
+  levels: defaultLevels(), // per mixer lane, 0–100
+  soundEditor: null, // { lane, before } while the sound modal is open; before is the lane's patch when it opened
   pendingTranspose: null, // { fromPc, semis }: the root moved while a lane had notes
   history: emptyHistory(), // { entries: snapshots to undo to, tag of the last edit }
   pendingImport: null, // a parsed composition file waiting for "replace?" to be answered
@@ -298,6 +302,42 @@ export const setClick = (click) => updatePlayback({ click });
 export const toggleMute = (lane) => update({ mix: toggleMix(state.mix, lane, 'mute') });
 export const toggleSolo = (lane) => update({ mix: toggleMix(state.mix, lane, 'solo') });
 
+// ---------- Sounds and mixer levels (not undoable) ----------
+
+export const setMixLevel = (lane, level) => {
+  const clamped = Math.min(100, Math.max(0, Math.round(Number(level)) || 0));
+  update({ levels: { ...state.levels, [lane]: clamped } });
+};
+
+export const openSoundEditor = (lane) => update({ soundEditor: { lane, before: state.sounds[lane] } });
+
+/** Set one parameter of the open lane's patch; nothing happens when the patch would not change. */
+export function setSoundParam(param, value) {
+  const { soundEditor, sounds } = state;
+  if (!soundEditor) return;
+  const patch = sounds[soundEditor.lane];
+  const next = withParam(patch, param, value);
+  if (next !== patch) update({ sounds: { ...sounds, [soundEditor.lane]: next } });
+}
+
+export function applySoundPreset(id) {
+  const { soundEditor, sounds } = state;
+  if (!soundEditor) return;
+  update({ sounds: { ...sounds, [soundEditor.lane]: presetPatch(soundEditor.lane, id) } });
+}
+
+export function resetSound() {
+  if (state.soundEditor) applySoundPreset(DEFAULT_PRESET[state.soundEditor.lane]);
+}
+
+export const confirmSoundEditor = () => update({ soundEditor: null });
+
+export function cancelSoundEditor() {
+  const { soundEditor, sounds } = state;
+  if (!soundEditor) return;
+  update({ sounds: { ...sounds, [soundEditor.lane]: soundEditor.before }, soundEditor: null });
+}
+
 /** Start playing from slot `from` (the first slot by default), or stop. */
 export function setPlaying(playing, from = { bar: 0, half: 0 }) {
   updatePlayback(playing ? { ...STOPPED, playing: true, playhead: from } : STOPPED);
@@ -326,7 +366,10 @@ export function undo() {
 
 /** Load a parsed file as one undoable edit. */
 export function loadComposition(composition) {
-  commit({ ...compositionPatch(composition), selectedSlot: null, selectedNote: null, pendingImport: null, fileError: null });
+  commit({
+    ...compositionPatch(composition), sounds: composition.sounds, levels: composition.levels, soundEditor: null,
+    selectedSlot: null, selectedNote: null, pendingImport: null, fileError: null,
+  });
 }
 
 /** A parsed file: load it straight away into an empty composition, otherwise ask first. */

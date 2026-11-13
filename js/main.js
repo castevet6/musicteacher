@@ -1,4 +1,4 @@
-import { playBass, playChord, playNote } from './audio/synth.js';
+import { playBass, playChord, playLead, playNote, setSoundConfig } from './audio/synth.js';
 import { createTransport } from './audio/transport.js';
 import * as store from './state.js';
 import { BASS_HIGH, BASS_LOW } from './theory/bassLine.js';
@@ -172,7 +172,7 @@ const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
   onRemove: (start) => store.removeLaneNote('melody', start),
   onResize: (start, length, tag) => store.resizeLaneNote('melody', start, length, tag),
   onSelect: (start) => store.selectLaneNote({ lane: 'melody', start }),
-  onAudition: (midi) => midi != null && playNote(midi),
+  onAudition: (midi) => midi != null && playLead(midi, { duration: 0.4 }),
   onClear: () => store.clearLane('melody'),
   onToggleMap: store.toggleMap,
   currentTick: () => transport.tick(),
@@ -203,7 +203,7 @@ const composerPanel = createComposerPanel(document.querySelector('#chords'), {
     const { ghosts, grid } = store.getState();
     store.addLaneNote(ghosts.lane, { start: ghosts.tick, length: gridTicks(grid), midi: ghost.midi });
     if (ghosts.lane === 'bass') playBass(ghost.midi, { duration: 0.4 });
-    else playNote(ghost.midi);
+    else playLead(ghost.midi, { duration: 0.4 });
   },
 });
 const legends = {
@@ -217,12 +217,19 @@ const collapseButton = document.querySelector('#collapse-instrument');
 collapseButton.addEventListener('click', store.toggleInstrument);
 
 let pageLang = null;
+let appliedSounds = null; // the sounds and levels last sent to the synth, by reference
+let appliedLevels = null;
 
 store.setLang(detectLang(LANGS));
 store.subscribe((state) => {
   if (state.lang !== pageLang) {
     translatePage(state.lang);
     pageLang = state.lang;
+  }
+  if (state.sounds !== appliedSounds || state.levels !== appliedLevels) {
+    setSoundConfig(state.sounds, state.levels);
+    appliedSounds = state.sounds;
+    appliedLevels = state.levels;
   }
   const composer = state.mode === 'composer';
   controls.render(state);
