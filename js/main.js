@@ -269,6 +269,8 @@ store.subscribe((state) => {
 });
 
 document.addEventListener('keydown', (event) => {
+  // The sound editor is modal: its own keys only, no undo or note deletion behind it.
+  if (store.getState().soundEditor) return;
   if (event.key === 'Escape') store.clearSelection();
   const typing = /^(input|select|textarea)$/i.test(event.target.tagName);
   const composer = store.getState().mode === 'composer';
