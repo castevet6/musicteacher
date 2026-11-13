@@ -44,7 +44,7 @@ function voice(midi, start, level) {
   }
 }
 
-// Melody voices are tracked so Stop can cut a held note short.
+// Melody and bass voices are tracked so Stop can cut a held note short.
 const leads = new Set();
 
 /**
@@ -76,7 +76,45 @@ export function playLead(midi, { when, duration = 0.5 } = {}) {
   osc.onended = () => leads.delete(lead);
 }
 
-/** Cut every melody note that is sounding or scheduled; used by Stop. */
+/**
+ * A bass note: a sine plus a quiet triangle an octave up, low-passed, held for
+ * `duration` seconds from audio time `when` (now by default), then released.
+ */
+export function playBass(midi, { when, duration = 0.5 } = {}) {
+  const c = context();
+  const start = when ?? c.currentTime;
+  const end = start + Math.max(0.05, duration);
+  const freq = midiToFreq(midi);
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(1.1, start + 0.008);
+  env.gain.setTargetAtTime(0.75, start + 0.008, 0.2);
+  env.gain.setTargetAtTime(0, end, 0.04);
+  const filter = c.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 900;
+  filter.Q.value = 0.5;
+  filter.connect(env).connect(master);
+  const body = c.createOscillator();
+  body.type = 'sine';
+  body.frequency.value = freq;
+  body.connect(filter);
+  const upper = c.createOscillator();
+  const upperGain = c.createGain();
+  upper.type = 'triangle';
+  upper.frequency.value = freq * 2;
+  upperGain.gain.value = 0.35;
+  upper.connect(upperGain).connect(filter);
+  for (const osc of [body, upper]) {
+    osc.start(start);
+    osc.stop(end + 0.25);
+    const held = { env, osc };
+    leads.add(held);
+    osc.onended = () => leads.delete(held);
+  }
+}
+
+/** Cut every melody and bass note that is sounding or scheduled; used by Stop. */
 export function stopLeads() {
   if (!ctx) return;
   const now = ctx.currentTime;

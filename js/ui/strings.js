@@ -26,6 +26,7 @@ const en = {
     fitOk: 'Mostly fits',
     fitClash: 'Clashes',
     ghost: 'Next-note idea (click to place)',
+    bassFifth: 'Chord fifth (bass map)',
   },
   controls: {
     mode: 'Mode',
@@ -102,7 +103,10 @@ const en = {
     map: 'Map',
     showMap: 'Show the fit map',
     hideMap: 'Hide the fit map',
-    hint: 'Click a cell to add a note, drag to lengthen it, click a note to select it, click again to delete it. The map shows how each pitch sits over the chord.',
+    hint: {
+      melody: 'Click a cell to add a note, drag to lengthen it, click a note to select it, click again to delete it. The map shows how each pitch sits over the chord.',
+      bass: 'Draw the bass the same way. The map marks each chord\'s root and fifth, the notes a bass line leans on.',
+    },
   },
   chords: {
     title: 'Chords',
@@ -114,7 +118,9 @@ const en = {
   },
   composer: {
     tabsAria: 'Panel sections',
-    tabs: { chord: 'Chord', melody: 'Melody', piece: 'Piece' },
+    tabs: { chord: 'Chord', melody: 'Melody', bass: 'Bass', piece: 'Piece' },
+    bassTitle: 'Bass',
+    hintBass: 'Click a note on the bass roll to see how it sits over its chord. The root and the fifth are the safest notes for a bass.',
     melodyTitle: 'Melody',
     hintMelody: 'Click a note on the roll to see how it sits over its chord and what to watch for.',
     noteHead: (name, bar) => `${name}, bar ${bar}`,
@@ -189,6 +195,7 @@ const fi = {
     fitOk: 'Sopii enimmäkseen',
     fitClash: 'Riitelee',
     ghost: 'Seuraavan sävelen idea (napsauta sijoittaaksesi)',
+    bassFifth: 'Soinnun kvintti (bassokartta)',
   },
   controls: {
     mode: 'Tila',
@@ -265,7 +272,10 @@ const fi = {
     map: 'Kartta',
     showMap: 'Näytä sopivuuskartta',
     hideMap: 'Piilota sopivuuskartta',
-    hint: 'Napsauta ruutua lisätäksesi sävelen, vedä pidentääksesi, napsauta säveltä valitaksesi sen ja uudelleen poistaaksesi. Kartta näyttää, miten kukin sävel istuu soinnun päälle.',
+    hint: {
+      melody: 'Napsauta ruutua lisätäksesi sävelen, vedä pidentääksesi, napsauta säveltä valitaksesi sen ja uudelleen poistaaksesi. Kartta näyttää, miten kukin sävel istuu soinnun päälle.',
+      bass: 'Piirrä basso samalla tavalla. Kartta merkitsee kunkin soinnun pohjasävelen ja kvintin, joihin bassolinja tavallisesti nojaa.',
+    },
   },
   chords: {
     title: 'Soinnut',
@@ -277,7 +287,9 @@ const fi = {
   },
   composer: {
     tabsAria: 'Paneelin osiot',
-    tabs: { chord: 'Sointu', melody: 'Melodia', piece: 'Kappale' },
+    tabs: { chord: 'Sointu', melody: 'Melodia', bass: 'Basso', piece: 'Kappale' },
+    bassTitle: 'Basso',
+    hintBass: 'Napsauta bassorullan säveltä nähdäksesi, miten se istuu sointuunsa. Pohjasävel ja kvintti ovat basson varmimmat sävelet.',
     melodyTitle: 'Melodia',
     hintMelody: 'Napsauta rullan säveltä nähdäksesi, miten se istuu sointuunsa ja mitä kannattaa tarkkailla.',
     noteHead: (name, bar) => `${name}, tahti ${bar}`,

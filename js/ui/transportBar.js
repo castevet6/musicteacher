@@ -4,7 +4,7 @@
 import { GRIDS, STYLES, isAudible } from '../theory/composition.js';
 import { ui } from './strings.js';
 
-const MIX_LANES = ['chords', 'melody']; // the bass lane arrives with the bass roll
+const MIX_LANES = ['chords', 'melody', 'bass'];
 
 export function createTransportBar(container, {
   onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onStyle, onMute, onSolo, onSuggestKey,

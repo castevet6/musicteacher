@@ -9,7 +9,8 @@ import { defaultSpelling, pcOf } from './notes.js';
 import { notesOverChord } from './overChord.js';
 
 /** How good each tier is, from a chord tone at 1 to an outside note at -1. */
-export const TIER_SCORE = { chord: 1, scale: 0.4, parent: 0.3, blue: 0.3, avoid: -0.5, outside: -1 };
+// `root` and `fifth` are the chord tones the bass map singles out (bassLine.js).
+export const TIER_SCORE = { root: 1, fifth: 1, chord: 1, scale: 0.4, parent: 0.3, blue: 0.3, avoid: -0.5, outside: -1 };
 
 /** Tier for each pitch class in a slot with no chord: scale membership only. */
 export function emptySlotTiers(key) {
@@ -37,10 +38,10 @@ export function cellTiers(key, slots, analyses = []) {
 /**
  * One entry per note of `lane`: `{ note, segments }`, each segment a piece of the
  * note inside one slot with `{ start, length, slot, chord, tier, label, note, reason, weight }`.
- * Pieces past the last bar read as an empty slot.
+ * Pieces past the last bar read as an empty slot. `tiers` (from cellTiers()
+ * or bassTiers()) defaults to the melody map.
  */
-export function laneFit(key, slots, lane, analyses) {
-  const tiers = cellTiers(key, slots, analyses);
+export function laneFit(key, slots, lane, analyses, tiers = cellTiers(key, slots, analyses)) {
   const empty = emptySlotTiers(key);
   return lane.notes.map((note) => ({
     note,

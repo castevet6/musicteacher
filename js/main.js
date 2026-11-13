@@ -1,6 +1,7 @@
-import { playChord, playNote } from './audio/synth.js';
+import { playBass, playChord, playNote } from './audio/synth.js';
 import { createTransport } from './audio/transport.js';
 import * as store from './state.js';
+import { BASS_HIGH, BASS_LOW } from './theory/bassLine.js';
 import { CompositionError, fileName, hasContent, gridTicks, parseComposition, serializeComposition } from './theory/composition.js';
 import { LANGS } from './theory/text/index.js';
 import { createChordPanel } from './ui/chordPanel.js';
@@ -176,6 +177,20 @@ const melodyRoll = createRoll(document.querySelector('#melody-roll'), {
   onToggleMap: store.toggleMap,
   currentTick: () => transport.tick(),
 });
+// The bass roll is E1–G3 whatever the instrument, opening around E2.
+const bassRoll = createRoll(document.querySelector('#bass-roll'), {
+  lane: 'bass',
+  range: () => [BASS_LOW, BASS_HIGH],
+  center: 40,
+  onAdd: (note, tag) => store.addLaneNote('bass', note, tag),
+  onRemove: (start) => store.removeLaneNote('bass', start),
+  onResize: (start, length, tag) => store.resizeLaneNote('bass', start, length, tag),
+  onSelect: (start) => store.selectLaneNote({ lane: 'bass', start }),
+  onAudition: (midi) => midi != null && playBass(midi, { duration: 0.4 }),
+  onClear: () => store.clearLane('bass'),
+  onToggleMap: store.toggleMap,
+  currentTick: () => transport.tick(),
+});
 const panel = createChordPanel(document.querySelector('#chords'), { onChordClick });
 const composerPanel = createComposerPanel(document.querySelector('#chords'), {
   onPickChord,
@@ -216,6 +231,7 @@ store.subscribe((state) => {
     transportBar.render(state);
     strip.render(state);
     melodyRoll.render(state);
+    bassRoll.render(state);
   }
   const collapsed = composer && state.instrumentCollapsed;
   instrumentHead.hidden = !composer;

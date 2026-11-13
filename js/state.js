@@ -7,6 +7,7 @@ import {
   MAX_BARS, emptyProgression, flattenSlots, nextAddress, presetProgression, rekeyProgression, resizeProgression,
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
+import { bassFit as bassLaneFit, bassTiers as bassMap } from './theory/bassLine.js';
 import { fitLevel, guessKeys, rankChords, slotFitScore } from './theory/harmonize.js';
 import { critiqueLane } from './theory/melodyCritique.js';
 import { cellTiers, laneFit } from './theory/melodyFit.js';
@@ -64,7 +65,10 @@ function derive(next) {
   const selectedNote = ref && next[ref.lane].notes.some((n) => n.start === ref.start) ? ref : null;
   // How the melody sits over the chords: the roll's map and note colours, the strip's fit dots.
   const tiers = cellTiers(key, slots, analysis.chords);
-  const melodyFit = laneFit(key, slots, next.melody, analysis.chords);
+  const melodyFit = laneFit(key, slots, next.melody, analysis.chords, tiers);
+  // The bass map singles out each chord's root and fifth.
+  const bassTiers = bassMap(key, slots, analysis.chords);
+  const bassFit = bassLaneFit(key, slots, next.bass, analysis.chords, bassTiers);
   const slotFits = slots.map((slot) => (slot.chord ? fitLevel(slotFitScore(melodyFit, slot.index)) : null));
   const critique = critiqueLane(key, slots, next.melody, { style: next.style, level: next.level, grid: next.grid, fit: melodyFit });
   // Ghosts: next-note ideas after the selected melody note, or after the last one.
@@ -74,7 +78,9 @@ function derive(next) {
   const sel = next.selectedSlot && slots.find((s) => sameAddress(s, next.selectedSlot));
   const rankingList = sel ? rankChords(key, slots, next.melody, sel.index, { style: next.style, loop }) : [];
   const ranking = rankingList.length && rankingList[0].fit !== null ? rankingList : null;
-  return { ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, slotFits, critique, ghosts, ranking };
+  return {
+    ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, bassTiers, bassFit, slotFits, critique, ghosts, ranking,
+  };
 }
 
 function update(patch) {

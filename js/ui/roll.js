@@ -11,12 +11,11 @@ import { SVG_NS, displayName, svgEl } from './highlight.js';
 import { ui } from './strings.js';
 
 const MIN_LABEL_WIDTH = 22;
-const CENTER_MIDI = 60; // the roll opens with C4 in view
 
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
 export function createRoll(container, handlers) {
-  const { lane, range, onAdd, onRemove, onResize, onSelect, onAudition, onClear, onToggleMap, currentTick } = handlers;
+  const { lane, range, center = 60, onAdd, onRemove, onResize, onSelect, onAudition, onClear, onToggleMap, currentTick } = handlers;
 
   container.classList.add('roll');
   container.dataset.lane = lane;
@@ -172,7 +171,9 @@ export function createRoll(container, handlers) {
     }
 
     // The fit map: one rect per row per filled slot, in the muted tier colour.
-    // Empty slots show scale membership through the row shading alone.
+    // Empty slots show scale membership through the row shading alone. The bass
+    // map also picks out each chord's root and fifth.
+    const tiers = lane === 'bass' ? state.bassTiers : state.tiers;
     if (state.showMap) {
       const map = svgEl('g', { class: 'map' }, frag);
       state.slots.forEach((slot, i) => {
@@ -181,7 +182,7 @@ export function createRoll(container, handlers) {
         const x = xOf(span.start);
         const w = xEnd(span.start + span.length) - x;
         for (let midi = high; midi >= low; midi--) {
-          const { tier } = state.tiers[i][midi % 12];
+          const { tier } = tiers[i][midi % 12];
           svgEl('rect', { class: `cell tier-${tier}`, x, y: yOf(midi), width: w, height: rowH, 'data-tier': tier }, map);
         }
       });
@@ -302,7 +303,7 @@ export function createRoll(container, handlers) {
     const key = `${geometry.low}-${geometry.high}-${state.instrument}`;
     if (scrolledTo === key) return;
     scrolledTo = key;
-    body.scrollTop = Math.max(0, yOf(CENTER_MIDI) - body.clientHeight / 2);
+    body.scrollTop = Math.max(0, yOf(center) - body.clientHeight / 2);
   }
 
   return {
@@ -312,7 +313,7 @@ export function createRoll(container, handlers) {
       fitHead();
       const text = ui(state.lang).roll;
       head.querySelector('.roll-title').textContent = text.lane[lane];
-      head.querySelector('.roll-hint').textContent = text.hint;
+      head.querySelector('.roll-hint').textContent = text.hint[lane];
       const clear = head.querySelector('.roll-clear');
       clear.textContent = text.clear;
       clear.setAttribute('aria-label', text.clearLane(text.lane[lane]));

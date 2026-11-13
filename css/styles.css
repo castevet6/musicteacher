@@ -11,6 +11,7 @@
   --blue-note: #8b5cf6;
   --out: #e04f5f;
   --chord: #1f9d6b;
+  --fifth: #0e7490; /* the bass map's chord fifth, next to --root */
   --tension: #2f6fde;
   --parent-tone: #8fb1ee;
   --avoid: #c2410c;
@@ -52,6 +53,7 @@
     --guide: #facc15;
     --ring: #f5f5f5;
     --note: #6ea0ff;
+    --fifth: #1f9fbf;
     --wood: #4a3220;
     --white-key: #e9e7e2;
     --black-key: #0d0e10;
@@ -189,6 +191,7 @@ body {
 .swatch-blue { background: var(--blue-note); }
 .swatch-out { background: var(--out); }
 .swatch-chord { background: var(--chord); }
+.swatch-fifth { background: var(--fifth); }
 .swatch-scale, .swatch-tension { background: var(--tension); }
 .swatch-parent { background: var(--parent-tone); }
 .swatch-avoid { background: var(--avoid); }
@@ -585,6 +588,8 @@ body {
 /* Fit map: muted tier colours behind the grid; placed notes get the saturated tier colour. */
 .roll .cell { pointer-events: none; }
 .roll .cell.tier-chord { fill: color-mix(in srgb, var(--chord) 28%, var(--surface)); }
+.roll .cell.tier-root { fill: color-mix(in srgb, var(--root) 34%, var(--surface)); }
+.roll .cell.tier-fifth { fill: color-mix(in srgb, var(--fifth) 30%, var(--surface)); }
 .roll .cell.tier-scale { fill: color-mix(in srgb, var(--tension) 16%, var(--surface)); }
 .roll .cell.tier-parent { fill: color-mix(in srgb, var(--parent-tone) 22%, var(--surface)); }
 .roll .cell.tier-blue { fill: color-mix(in srgb, var(--blue-note) 22%, var(--surface)); }
@@ -592,6 +597,8 @@ body {
 .roll .cell.tier-outside { fill: color-mix(in srgb, var(--text) 9%, var(--surface)); }
 .roll .note-body { fill: var(--note); stroke: var(--surface); stroke-width: 1; }
 .roll .note.tier-chord .note-body, .roll .note-piece.tier-chord { fill: var(--chord); }
+.roll .note.tier-root .note-body, .roll .note-piece.tier-root { fill: var(--root); }
+.roll .note.tier-fifth .note-body, .roll .note-piece.tier-fifth { fill: var(--fifth); }
 .roll .note.tier-scale .note-body, .roll .note-piece.tier-scale { fill: var(--tension); }
 .roll .note.tier-parent .note-body, .roll .note-piece.tier-parent { fill: var(--parent-tone); }
 .roll .note.tier-blue .note-body, .roll .note-piece.tier-blue { fill: var(--blue-note); }
@@ -630,6 +637,8 @@ body {
 .chord-badge { background: var(--chord); min-width: 3em; padding: 0 10px; }
 .tier-badge { min-width: 3em; padding: 0 10px; background: var(--note); }
 .tier-badge[data-tier="chord"] { background: var(--chord); }
+.tier-badge[data-tier="root"] { background: var(--root); }
+.tier-badge[data-tier="fifth"] { background: var(--fifth); }
 .tier-badge[data-tier="scale"] { background: var(--tension); }
 .tier-badge[data-tier="parent"] { background: var(--parent-tone); color: #111; }
 .tier-badge[data-tier="blue"] { background: var(--blue-note); }

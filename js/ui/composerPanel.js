@@ -1,6 +1,7 @@
 // Side panel in Composer. Its content follows the selection: a selected bar
 // shows the Chord tab (chord picker, what to play over the chord, guide tones,
-// next-chord ideas), nothing selected shows the Piece tab (cadences, advice).
+// next-chord ideas), a note shows its lane's tab (Melody or Bass), nothing
+// selected shows the Piece tab (cadences, advice).
 // A tab click overrides that until the selection changes.
 
 import {
@@ -9,6 +10,7 @@ import {
 } from '../theory/adviceText.js';
 import { buildKey, keyLabel } from '../theory/scales.js';
 import { fitLevel } from '../theory/harmonize.js';
+import { plainTier } from '../theory/bassLine.js';
 import { noteFit, noteTier } from '../theory/melodyFit.js';
 import { chordPalette } from '../theory/analysis.js';
 import { CHORD_QUALITIES, buildChord } from '../theory/chords.js';
@@ -245,28 +247,43 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
       h('span', { class: 'pick-reason' }, ghostReasonText(ghost.reason, level, lang))))));
   }
 
-  function melodyTab(state) {
-    const { level, lang, selectedNote } = state;
+  /** The index of the selected note in `lane`, or -1. */
+  const selectedIndex = (state, lane) => (state.selectedNote?.lane === lane
+    ? state[lane].notes.findIndex((n) => n.start === state.selectedNote.start)
+    : -1);
+
+  /** A lane note's heading (name in its tier colour, bar) and how it sits over its chord. */
+  function noteSummary(state, lane, index) {
+    const { level, lang } = state;
     const text = ui(lang).composer;
-    const index = selectedNote?.lane === 'melody' ? state.melody.notes.findIndex((n) => n.start === selectedNote.start) : -1;
-    if (index < 0) return [h('h2', {}, text.melodyTitle), h('p', { class: 'hint' }, text.hintMelody), ghostSection(state)];
-    const note = state.melody.notes[index];
-    const entry = state.melodyFit[index];
+    const note = state[lane].notes[index];
+    const entry = state[`${lane}Fit`][index];
     const tier = noteTier(entry);
     const first = entry.segments.find((s) => s.chord) ?? entry.segments[0];
     const name = `${prettyName(first.note, lang)}${octaveOf(note.midi)}`;
     const bar = Math.floor(note.start / 48) + 1;
-    const remarks = state.critique.filter((it) => it.noteIndex === index);
     const fit = noteFit(entry);
+    // The bass map's root and fifth read as chord tones in the sentence.
+    const info = { ...first, tier: plainTier(first.tier) };
     return [
       h('h2', {},
         h('span', { class: `note-badge tier-badge`, 'data-tier': tier }, name),
         h('span', { class: 'bar-label' }, text.noteHead(name, bar).replace(`${name}, `, ''))),
       h('p', { class: 'note-line', 'data-fit': fit == null ? false : fit.toFixed(2) },
         first.chord
-          ? [prettyText(noteOverChordText({ ...first, note: first.note }, first.chord, level, lang)),
+          ? [prettyText(noteOverChordText(info, first.chord, level, lang)),
             first.tier === 'avoid' && first.reason && ` (${prettyText(avoidReasonText(first, level, lang))})`]
           : text.noteOverNothing(name)),
+    ];
+  }
+
+  function melodyTab(state) {
+    const text = ui(state.lang).composer;
+    const index = selectedIndex(state, 'melody');
+    if (index < 0) return [h('h2', {}, text.melodyTitle), h('p', { class: 'hint' }, text.hintMelody), ghostSection(state)];
+    const remarks = state.critique.filter((it) => it.noteIndex === index);
+    return [
+      ...noteSummary(state, 'melody', index),
       h('section', { class: 'remarks' },
         h('h3', {}, text.remarks),
         remarks.length
@@ -329,14 +346,21 @@ export function createComposerPanel(container, { onPickChord, onNextChord, onSel
     ];
   }
 
-  const TABS = { chord: chordTab, melody: melodyTab, piece: pieceTab };
+  function bassTab(state) {
+    const text = ui(state.lang).composer;
+    const index = selectedIndex(state, 'bass');
+    if (index < 0) return [h('h2', {}, text.bassTitle), h('p', { class: 'hint' }, text.hintBass)];
+    return noteSummary(state, 'bass', index);
+  }
 
-  /** The tab follows the selection: a note shows Melody, a bar shows Chord, nothing shows Piece. */
+  const TABS = { chord: chordTab, melody: melodyTab, bass: bassTab, piece: pieceTab };
+
+  /** The tab follows the selection: a note shows its lane's tab, a bar shows Chord, nothing shows Piece. */
   function draw(state) {
     const { selectedNote: note, selectedSlot: slot } = state;
     const selection = note ? `note-${note.lane}-${note.start}` : slot ? `slot-${slot.bar}-${slot.half}` : null;
     if (selection !== lastSelection) {
-      tab = note ? 'melody' : slot ? 'chord' : 'piece';
+      tab = note ? note.lane : slot ? 'chord' : 'piece';
       lastSelection = selection;
     }
     show(tabBar(state), ...TABS[tab](state));
