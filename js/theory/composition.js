@@ -6,6 +6,7 @@ import { CHORD_QUALITIES } from './chords.js';
 import { LETTERS } from './notes.js';
 import { MAX_BARS } from './progression.js';
 import { SCALES } from './scales.js';
+import { defaultLevels, defaultSounds, parseLevels, parseSounds, SOUND_LANES, LEVEL_LANES } from './sounds.js';
 
 // Twelve ticks per beat leave room for triplets later without renumbering.
 export const TICKS_PER_BEAT = 12;
@@ -140,7 +141,7 @@ export const segmentWeight = (segment) => beatWeight(segment.start) * segment.le
 // ---------- Files ----------
 
 /** The plain object saved as a composition file. */
-export function serializeComposition({ title, key, style, playback, progression, melody, bass }) {
+export function serializeComposition({ title, key, style, playback, progression, melody, bass, sounds = defaultSounds(), levels = defaultLevels() }) {
   return {
     version: FILE_VERSION,
     title,
@@ -152,6 +153,8 @@ export function serializeComposition({ title, key, style, playback, progression,
     progression: { bars: progression.bars.map((bar) => ({ chords: bar.chords.map((c) => (c ? { ...c } : null)) })) },
     melody: { notes: melody.notes.map((n) => ({ ...n })) },
     bass: { notes: bass.notes.map((n) => ({ ...n })) },
+    sounds: Object.fromEntries(SOUND_LANES.map((lane) => [lane, { ...sounds[lane] }])),
+    levels: Object.fromEntries(LEVEL_LANES.map((lane) => [lane, levels[lane]])),
   };
 }
 
@@ -249,6 +252,8 @@ export function parseComposition(input) {
     progression,
     melody: parseLane(raw.melody, 'melody', barCount),
     bass: parseLane(raw.bass, 'bass', barCount),
+    sounds: parseSounds(raw.sounds, 'sounds', fail),
+    levels: parseLevels(raw.levels, 'levels', fail),
   };
 }
 

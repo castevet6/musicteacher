@@ -8,6 +8,7 @@ import {
 } from '../js/theory/composition.js';
 import { emptyProgression, flattenSlots, presetProgression, toggleSplit } from '../js/theory/progression.js';
 import { buildKey } from '../js/theory/scales.js';
+import { defaultLevels, defaultSounds, presetPatch, withParam } from '../js/theory/sounds.js';
 
 // Golden cases, checked by hand. See IMPLEMENTATION-PLAN.md §10.2.
 
@@ -118,6 +119,32 @@ test('a composition survives a round trip through its file', () => {
   assert.deepEqual(parseComposition({ ...file, extra: 1 }), file);
 });
 
+test('sounds and levels survive a round trip, custom patch included', () => {
+  const custom = withParam(presetPatch('melody', 'flute'), 'cutoff', 1200);
+  const sounds = { ...defaultSounds(), melody: custom };
+  const levels = { chords: 60, melody: 30, bass: 75, click: 90 };
+  const file = serializeComposition({ ...state(), sounds, levels });
+  assert.deepEqual(file.sounds.melody, custom);
+  assert.deepEqual(file.levels, levels);
+  const back = parseComposition(JSON.stringify(file));
+  assert.deepEqual(back.sounds, sounds);
+  assert.deepEqual(back.levels, levels);
+  assert.equal(back.sounds.melody.preset, 'custom');
+});
+
+test('a file without sounds or levels parses to the defaults', () => {
+  const file = serializeComposition(state());
+  delete file.sounds;
+  delete file.levels;
+  const back = parseComposition(file);
+  assert.deepEqual(back.sounds, defaultSounds());
+  assert.deepEqual(back.levels, defaultLevels());
+  // A file saved without the sound arguments still writes the defaults.
+  const fresh = serializeComposition(state());
+  assert.deepEqual(fresh.sounds, defaultSounds());
+  assert.deepEqual(fresh.levels, defaultLevels());
+});
+
 test('fileName slugs the title', () => {
   assert.equal(fileName('My Song'), 'my-song.json');
   assert.equal(fileName('  Sävel – Nº 2! '), 'savel-no-2.json');
@@ -153,6 +180,8 @@ test('parseComposition rejects every bad field and names it', () => {
   rejects(bad((r) => { r.melody.notes[1].length = 4 * 48; }), 'melody.notes[1].length');
   rejects(bad((r) => { r.melody.notes[0].length = 2 * Q; }), 'melody.notes[1]'); // overlaps the next note
   rejects(bad((r) => { r.bass.notes[0].start = 1.5; }), 'bass.notes[0].start');
+  rejects(bad((r) => { r.sounds.melody.cutoff = 'banana'; }), 'sounds.melody.cutoff');
+  rejects(bad((r) => { r.levels.bass = 101; }), 'levels.bass');
   // An empty progression with empty lanes is a valid file.
   const empty = parseComposition(serializeComposition({ ...state(), progression: emptyProgression(1), melody: emptyLane(), bass: emptyLane() }));
   assert.equal(empty.progression.bars.length, 1);
