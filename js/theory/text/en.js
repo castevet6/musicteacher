@@ -257,7 +257,11 @@ const CRITIQUE_NAMES = {
   'big-leap': { beginner: 'Big jump', intermediate: 'Unrecovered leap' },
   'bar-no-chord-tone': { beginner: 'Bar misses the chord', intermediate: 'No chord tone in the bar' },
   'ends-off-chord': { beginner: 'Ending off the chord', intermediate: 'Ends on a non-chord tone' },
+  'clash-with-melody': { beginner: 'Bass rubs against the tune', intermediate: 'Clash with the melody' },
+  'not-chord-tone-at-change': { beginner: 'Bass misses the new chord', intermediate: 'Non-chord tone at the chord change' },
+  'parallel-octaves': { beginner: 'Bass copies the tune', intermediate: 'Parallel octaves' },
 };
+const BASS_INTERVALS = { m9: 'minor 9th', tritone: 'tritone' };
 
 const critiqueName = (rule, level) => pick(level, CRITIQUE_NAMES[rule]);
 
@@ -295,6 +299,23 @@ function critiqueText({ rule, data }, level) {
         beginner: `The last note ${n} is not in ${c}. Ending on a chord note feels finished.`,
         intermediate: `The piece ends on ${n}, a non-chord tone (${data.label}) over ${c}.`,
       });
+    case 'clash-with-melody': {
+      const m = noteName(data.melodyNote);
+      return pick(level, {
+        beginner: `The bass ${n} and the tune's ${m} grind against each other on a strong beat. Move one of them.`,
+        intermediate: `Bass ${n} and melody ${m} form a ${BASS_INTERVALS[data.interval]} on beat ${data.beat} of bar ${data.bar}${c ? ` over ${c}` : ''}.`,
+      });
+    }
+    case 'not-chord-tone-at-change':
+      return pick(level, {
+        beginner: `When ${c} arrives the bass plays ${n}, which is not in the chord. Start the bar on the root.`,
+        intermediate: `The bass sounds ${n} (${data.label}) as ${c} arrives in bar ${data.bar}; a change is clearest on a chord tone, usually the root.`,
+      });
+    case 'parallel-octaves':
+      return pick(level, {
+        beginner: `The bass follows the tune an octave away into ${n}, so it adds nothing of its own. Move it the other way.`,
+        intermediate: `Bass and melody move in parallel octaves into ${n} and ${noteName(data.melodyNote)}; the bass loses its own line.`,
+      });
     default:
       return '';
   }
@@ -307,6 +328,8 @@ const GHOST_REASONS = {
   step: { beginner: 'moves one step', intermediate: 'stepwise' },
   'leap-to-chord-tone': { beginner: 'jumps to a chord note', intermediate: 'leap to a chord tone' },
   'scale-tone': { beginner: 'in the scale', intermediate: 'scale tone' },
+  root: { beginner: 'the chord\'s root: solid ground', intermediate: 'chord root' },
+  approach: { beginner: 'leads into the next chord', intermediate: 'chromatic approach to the next root' },
 };
 const ghostReasonText = (reason, level) => pick(level, GHOST_REASONS[reason] ?? { intermediate: reason });
 

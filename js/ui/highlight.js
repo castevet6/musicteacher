@@ -94,7 +94,8 @@ export const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export function svgEl(tag, attrs = {}, parent) {
   const el = document.createElementNS(SVG_NS, tag);
-  for (const [name, value] of Object.entries(attrs)) el.setAttribute(name, value);
+  // Like h(): false or null leaves the attribute out.
+  for (const [name, value] of Object.entries(attrs)) if (value !== false && value != null) el.setAttribute(name, value);
   parent?.appendChild(el);
   return el;
 }

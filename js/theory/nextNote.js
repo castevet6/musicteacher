@@ -1,38 +1,68 @@
 // Next-note ghosts: two or three pitches for the cell right after a note,
 // scored by how they sit over the chord there and how they move from the
 // note before. Suggestions only; nothing is placed until the user clicks.
+// The bass voice adds its own weights: the root, the fifth and a chromatic
+// approach into the next chord's root, inside the bass roll's range.
 
 import { analyzeChord } from './analysis.js';
 import { diatonicChords } from './chords.js';
-import { TICKS_PER_BAR, chordAtTick, gridTicks, noteAt, slotSpan } from './composition.js';
+import { BASS_HIGH, BASS_LOW } from './bassLine.js';
+import { TICKS_PER_BAR, TICKS_PER_BEAT, chordAtTick, gridTicks, noteAt, slotAtTick, slotSpan } from './composition.js';
 import { emptySlotTiers } from './melodyFit.js';
 import { mod12, pcOf } from './notes.js';
 import { notesOverChord } from './overChord.js';
 
-export const GHOST_REASONS = ['resolves', 'chord-tone', 'step', 'leap-to-chord-tone', 'scale-tone'];
+export const GHOST_REASONS = ['resolves', 'approach', 'root', 'chord-tone', 'step', 'leap-to-chord-tone', 'scale-tone'];
 const STEP = 2;
 const LEAP = 7; // more than a fifth
 const OPENING_OCTAVE = 60; // the first three notes come out around C4
+const BASS_OPENING = 36; // a bass opens on the root in C2–B2
+const BASS_WEIGHTS = { root: 4, fifth: 2, approach: 3 };
+const FIFTHS = new Set(['5', 'b5', '#5']);
 
 const tiersAt = (key, slots, tick) => {
   const chord = chordAtTick(slots, tick);
   return { chord, tiers: chord ? notesOverChord(key, chord, analyzeChord(key, chord)) : emptySlotTiers(key) };
 };
 
-/** Root, 3rd and 5th of `chord` (or the key's tonic chord) in the octave above middle C. */
-function openingNotes(key, chord) {
+/**
+ * Root, 3rd and 5th of `chord` (or the key's tonic chord) in the octave above
+ * middle C; for the bass, root, 5th and 3rd with the root in C2–B2.
+ */
+function openingNotes(key, chord, voice) {
   const triad = (chord ?? diatonicChords(key)[0].chord).tones.filter((t) => ['R', '3', '5'].includes(t.role));
   const root = pcOf(triad[0].note);
+  if (voice === 'bass') {
+    const rootMidi = BASS_OPENING + root;
+    const [r, third, fifth] = triad.map((t) => rootMidi + mod12(pcOf(t.note) - root));
+    return [{ midi: r, reason: 'root' }, { midi: fifth, reason: 'chord-tone' }, { midi: third, reason: 'chord-tone' }];
+  }
   const rootMidi = OPENING_OCTAVE + root;
   return triad.map((t) => ({ midi: rootMidi + mod12(pcOf(t.note) - root), reason: 'chord-tone' }));
+}
+
+/**
+ * The pitch class of the next chord's root when `tick` lies in the last beat
+ * of its slot, the slot after it (or the first, when looping) holding a chord;
+ * otherwise null.
+ */
+function approachTarget(slots, tick, loop) {
+  const slot = slotAtTick(slots, tick);
+  if (!slot) return null;
+  const { start, length } = slotSpan(slot);
+  if (tick < start + length - TICKS_PER_BEAT) return null;
+  const next = slots[slot.index + 1] ?? (loop ? slots[0] : null);
+  return next?.chord ? pcOf(next.chord.root) : null;
 }
 
 /**
  * Up to three `{ midi, reason, score }` for the grid cell after the note at
  * `afterStart` (the last note by default), each one grid step long at `tick`.
  * Empty when the cell lies past the last bar or already holds a note.
+ * `voice: 'bass'` adds the bass weights and keeps to the bass range; `loop`
+ * lets the last bar approach the first.
  */
-export function suggestNextNotes(key, slots, lane, afterStart, { style = 'pop', grid = 8 } = {}) {
+export function suggestNextNotes(key, slots, lane, afterStart, { style = 'pop', grid = 8, voice = 'melody', loop = false } = {}) {
   const step = gridTicks(grid);
   const end = slots.length ? (() => { const s = slotSpan(slots.at(-1)); return s.start + s.length; })() : TICKS_PER_BAR;
   const prev = afterStart == null ? lane.notes.at(-1) : lane.notes.find((n) => n.start === afterStart);
@@ -40,7 +70,7 @@ export function suggestNextNotes(key, slots, lane, afterStart, { style = 'pop', 
   if (!prev) {
     if (lane.notes.length) return { tick: 0, ghosts: [] };
     const { chord } = tiersAt(key, slots, 0);
-    return { tick: 0, ghosts: openingNotes(key, chord) };
+    return { tick: 0, ghosts: openingNotes(key, chord, voice) };
   }
 
   const tick = prev.start + prev.length;
@@ -54,12 +84,19 @@ export function suggestNextNotes(key, slots, lane, afterStart, { style = 'pop', 
   const prevIsAvoid = prevInfo.tier === 'avoid';
   const sameRepeat = style === 'jazz' ? -2 : -1;
   const downbeat = tick % TICKS_PER_BAR === 0;
+  const bass = voice === 'bass';
+  const target = bass ? approachTarget(slots, tick, loop) : null;
+  const low = bass ? Math.max(BASS_LOW, prev.midi - 12) : prev.midi - 12;
+  const high = bass ? Math.min(BASS_HIGH, prev.midi + 12) : prev.midi + 12;
 
   const candidates = [];
-  for (let midi = prev.midi - 12; midi <= prev.midi + 12; midi++) {
+  for (let midi = low; midi <= high; midi++) {
     const info = here.tiers[midi % 12];
     const inKey = key.scalePcs.has(midi % 12);
-    if (info.tier !== 'chord' && !inKey) continue;
+    const approach = target !== null && [1, 11].includes(mod12(midi - target));
+    if (info.tier !== 'chord' && !inKey && !approach) continue;
+    const isRoot = bass && here.chord && info.tier === 'chord' && info.label === 'R';
+    const isFifth = bass && here.chord && info.tier === 'chord' && FIFTHS.has(info.label);
     const diff = midi - prev.midi;
     const size = Math.abs(diff);
     const isStep = size > 0 && size <= STEP;
@@ -76,10 +113,15 @@ export function suggestNextNotes(key, slots, lane, afterStart, { style = 'pop', 
     if (size > LEAP) score -= 2;
     if (size === 0) score += sameRepeat;
     if (downbeat && info.tier === 'chord' && (info.label === 'R' || info.label === '3')) score += 1;
+    if (isRoot) score += BASS_WEIGHTS.root;
+    if (isFifth) score += BASS_WEIGHTS.fifth;
+    if (approach) score += BASS_WEIGHTS.approach;
 
-    const reason = resolves ? 'resolves'
-      : info.tier === 'chord' ? (size > STEP ? 'leap-to-chord-tone' : 'chord-tone')
-        : isStep ? 'step' : 'scale-tone';
+    let reason = isStep ? 'step' : 'scale-tone';
+    if (info.tier === 'chord') reason = size > STEP ? 'leap-to-chord-tone' : 'chord-tone';
+    if (isRoot) reason = 'root';
+    if (approach) reason = 'approach';
+    if (resolves) reason = 'resolves';
     candidates.push({ midi, reason, score, size });
   }
 

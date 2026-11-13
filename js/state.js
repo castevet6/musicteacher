@@ -8,7 +8,7 @@ import {
   sameAddress, setChordAt, toRelative, toggleSplit as splitBar,
 } from './theory/progression.js';
 import {
-  applyPattern, bassFit as bassLaneFit, bassPattern, bassTiers as bassMap,
+  applyPattern, bassFit as bassLaneFit, bassPattern, bassTiers as bassMap, critiqueBass,
 } from './theory/bassLine.js';
 import { fitLevel, guessKeys, rankChords, slotFitScore } from './theory/harmonize.js';
 import { critiqueLane } from './theory/melodyCritique.js';
@@ -73,15 +73,22 @@ function derive(next) {
   const bassFit = bassLaneFit(key, slots, next.bass, analysis.chords, bassTiers);
   const slotFits = slots.map((slot) => (slot.chord ? fitLevel(slotFitScore(melodyFit, slot.index)) : null));
   const critique = critiqueLane(key, slots, next.melody, { style: next.style, level: next.level, grid: next.grid, fit: melodyFit });
-  // Ghosts: next-note ideas after the selected melody note, or after the last one.
-  const after = selectedNote?.lane === 'melody' ? selectedNote.start : null;
-  const ghosts = { lane: 'melody', ...suggestNextNotes(key, slots, next.melody, after, { style: next.style, grid: next.grid }) };
+  const bassCritique = critiqueBass(key, slots, next.bass, next.melody, { tiers: bassTiers });
+  // Ghosts: next-note ideas after the selected note in its lane; with nothing
+  // selected, after the last melody note.
+  const ghostLane = selectedNote?.lane ?? 'melody';
+  const ghosts = {
+    lane: ghostLane,
+    ...suggestNextNotes(key, slots, next[ghostLane], selectedNote?.start ?? null, {
+      style: next.style, grid: next.grid, voice: ghostLane, loop,
+    }),
+  };
   // Chords for the melody inside the selected slot; null when the slot has no melody (the Chord tab's next-chord ideas cover that).
   const sel = next.selectedSlot && slots.find((s) => sameAddress(s, next.selectedSlot));
   const rankingList = sel ? rankChords(key, slots, next.melody, sel.index, { style: next.style, loop }) : [];
   const ranking = rankingList.length && rankingList[0].fit !== null ? rankingList : null;
   return {
-    ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, bassTiers, bassFit, slotFits, critique, ghosts, ranking,
+    ...next, key, suggestions, slots, analysis, focus, selectedNote, tiers, melodyFit, bassTiers, bassFit, slotFits, critique, bassCritique, ghosts, ranking,
   };
 }
 

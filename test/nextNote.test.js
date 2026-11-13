@@ -88,3 +88,42 @@ test('the pop preset melody of milestone 3 gets a ghost after Twinkle', () => {
   assert.equal(result.tick, BAR);
   assert.ok(result.ghosts.length >= 2);
 });
+
+// ---------- Bass ghosts (milestone 13) ----------
+
+const bass = (r) => suggestNextNotes(C, r.slots, r.lane, r.after ?? null, { voice: 'bass', grid: 4, loop: r.loop ?? false });
+
+test('bass: with no notes yet, bar 1 over C offers C2 first, then G2 and E2', () => {
+  assert.deepEqual(brief(bass({ slots: slotsFor(C, ['I']), lane: lane() })), ['36:root', '43:chord-tone', '40:chord-tone']);
+  assert.deepEqual(brief(bass({ slots: slotsFor(C, ['V']), lane: lane() })).map((g) => g.split(':')[0]), ['43', '50', '47']);
+});
+
+test('bass: after a whole C2, the next bar over G7 starts on a G root', () => {
+  const result = bass({ slots: slotsFor(C, ['I', 'V7']), lane: lane([0, BAR, 36]) });
+  assert.equal(result.tick, BAR);
+  const [first] = result.ghosts;
+  assert.equal(first.midi % 12, 7);
+  assert.equal(first.reason, 'root');
+});
+
+test('bass: on beat 4 before G7, F#2 is offered as a chromatic approach', () => {
+  const slots = slotsFor(C, ['I', 'V7']);
+  const result = bass({ slots, lane: lane([0, Q, 36], [Q, Q, 43], [2 * Q, Q, 40]), after: 2 * Q });
+  assert.equal(result.tick, 3 * Q);
+  assert.ok(brief(result).includes('42:approach'), brief(result).join(' '));
+  // Not earlier in the bar, and not before an empty bar.
+  assert.ok(!brief(bass({ slots, lane: lane([0, Q, 36], [Q, Q, 40]), after: Q })).some((g) => g.endsWith(':approach')));
+  const open = slotsFor(C, ['I', '']);
+  assert.ok(!brief(bass({ slots: open, lane: lane([0, Q, 36], [Q, Q, 43], [2 * Q, Q, 40]), after: 2 * Q })).some((g) => g.endsWith(':approach')));
+  // At the end of the piece the loop decides: back into C in bar 1.
+  const last = bass({ slots, lane: lane([BAR, Q, 43], [BAR + Q, Q, 47], [BAR + 2 * Q, Q, 50]), after: BAR + 2 * Q, loop: true });
+  assert.ok(brief(last).includes('47:approach'), brief(last).join(' '));
+});
+
+test('bass: ghosts stay inside E1–G3', () => {
+  const low = bass({ slots: slotsFor(C, ['vi']), lane: lane([0, Q, 28]), after: 0 });
+  const high = bass({ slots: slotsFor(C, ['V']), lane: lane([0, Q, 55]), after: 0 });
+  for (const g of [...low.ghosts, ...high.ghosts]) assert.ok(g.midi >= 28 && g.midi <= 55, String(g.midi));
+  assert.equal(low.ghosts.length, 3);
+  assert.equal(high.ghosts.length, 3);
+});

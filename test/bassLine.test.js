@@ -1,8 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BASS_HIGH, BASS_LOW, BASS_PATTERNS, applyPattern, bassFit, bassPattern, bassTiers, plainTier,
+  BASS_HIGH, BASS_LOW, BASS_PATTERNS, BASS_RULES, applyPattern, bassFit, bassPattern, bassTiers, critiqueBass, plainTier,
 } from '../js/theory/bassLine.js';
+import { critiqueName, critiqueText } from '../js/theory/adviceText.js';
+import { noteName } from '../js/theory/notes.js';
+import { LANGS } from '../js/theory/text/index.js';
 import { TICKS_PER_BAR as BAR } from '../js/theory/composition.js';
 import { cellTiers, noteFit, noteTier } from '../js/theory/melodyFit.js';
 import { emptyProgression, flattenSlots, parseNumeral, setChordAt, toggleSplit } from '../js/theory/progression.js';
@@ -158,4 +161,80 @@ test('applyPattern: one slot only touches that slot', () => {
   const drawn = lane([0, Q, 40], [BAR, Q, 33]);
   const result = applyPattern(drawn, bassPattern(C, slots, 'rootFifth'), slots, 1);
   assert.deepEqual(notesOf(result), [[0, Q, 40], [BAR, H, 43], [BAR + H, H, 50]]);
+});
+
+// ---------- Critique (milestone 13) ----------
+
+const C_G7 = slotsFor(C, ['I', 'V7']);
+const rulesOf = (items) => items.map((it) => `${it.rule}@${it.noteIndex}`);
+
+test('critique: bass E2 under melody F4 on beat 1 over C is a minor ninth', () => {
+  const items = critiqueBass(C, C_G7, lane([0, BAR, 40]), lane([0, Q, 65]));
+  assert.deepEqual(rulesOf(items), ['clash-with-melody@0']);
+  assert.equal(items[0].data.interval, 'm9');
+  assert.equal(noteName(items[0].data.note), 'E');
+  assert.equal(noteName(items[0].data.melodyNote), 'F');
+});
+
+test('critique: bass B1 under F4 is a tritone, fine over G7, a clash over C', () => {
+  const overG7 = critiqueBass(C, C_G7, lane([BAR, BAR, 35]), lane([BAR, Q, 65]));
+  assert.deepEqual(overG7, []);
+  const overC = critiqueBass(C, C_G7, lane([0, BAR, 35]), lane([0, Q, 65]));
+  assert.ok(rulesOf(overC).includes('clash-with-melody@0'), rulesOf(overC).join(' '));
+  assert.equal(overC.find((it) => it.rule === 'clash-with-melody').data.interval, 'tritone');
+  // On beat 3 as well; off the strong beats it passes.
+  assert.deepEqual(rulesOf(critiqueBass(C, C_G7, lane([H, H, 35]), lane([H, Q, 65]))), ['clash-with-melody@0']);
+  assert.deepEqual(critiqueBass(C, C_G7, lane([Q, Q, 35]), lane([Q, Q, 65])), []);
+});
+
+test('critique: a whole bass note clashing on beats 1 and 3 is flagged once', () => {
+  const items = critiqueBass(C, C_G7, lane([0, BAR, 40]), lane([0, Q, 65], [H, Q, 65]));
+  assert.deepEqual(rulesOf(items), ['clash-with-melody@0']);
+});
+
+test('critique: bass D2 on beat 1 of a C bar is not a chord tone at the change', () => {
+  const items = critiqueBass(C, C_G7, lane([0, Q, 38]), lane());
+  assert.deepEqual(rulesOf(items), ['not-chord-tone-at-change@0']);
+  assert.equal(items[0].data.label, '9');
+  // A chord tone is fine, so is a held note that is a tone of the new chord, and an empty bar.
+  assert.deepEqual(critiqueBass(C, C_G7, lane([0, Q, 40]), lane()), []);
+  assert.deepEqual(critiqueBass(C, C_G7, lane([H, BAR, 43]), lane()), []);
+  assert.deepEqual(critiqueBass(C, slotsFor(C, ['']), lane([0, Q, 38]), lane()), []);
+  // A held C2 into G7 is flagged on the note that is sounding at the change.
+  assert.deepEqual(rulesOf(critiqueBass(C, C_G7, lane([H, BAR, 36]), lane())), ['not-chord-tone-at-change@0']);
+});
+
+test('critique: melody C4 D4 over bass C2 D2 moves in parallel octaves', () => {
+  const items = critiqueBass(C, C_G7, lane([0, Q, 36], [Q, Q, 38]), lane([0, Q, 60], [Q, Q, 62]));
+  assert.deepEqual(rulesOf(items), ['parallel-octaves@1']);
+  // Contrary motion, or a tenth apart, is fine.
+  assert.deepEqual(critiqueBass(C, C_G7, lane([0, Q, 36], [Q, Q, 35]), lane([0, Q, 60], [Q, Q, 62])), []);
+  assert.deepEqual(critiqueBass(C, C_G7, lane([0, Q, 36], [Q, Q, 38]), lane([0, Q, 64], [Q, Q, 66])), []);
+});
+
+test('critique: every pattern over C | G7 passes against an empty melody', () => {
+  for (const { id } of BASS_PATTERNS) {
+    assert.deepEqual(critiqueBass(C, C_G7, bassPattern(C, C_G7, id, { loop: true }), lane()), [], id);
+  }
+});
+
+test('critique: every bass rule has a name and a sentence in both languages and levels', () => {
+  const items = [
+    ...critiqueBass(C, C_G7, lane([0, BAR, 40]), lane([0, Q, 65])),
+    ...critiqueBass(C, C_G7, lane([0, Q, 38]), lane()),
+    ...critiqueBass(C, C_G7, lane([0, Q, 36], [Q, Q, 38]), lane([0, Q, 60], [Q, Q, 62])),
+    ...critiqueBass(C, C_G7, lane([0, BAR, 35]), lane([0, Q, 65])),
+  ];
+  assert.deepEqual([...new Set(items.map((it) => it.rule))].sort(), [...BASS_RULES].sort());
+  for (const lang of LANGS) {
+    for (const level of ['beginner', 'intermediate']) {
+      for (const rule of BASS_RULES) assert.ok(critiqueName(rule, level, lang).length > 3);
+      for (const item of items) {
+        const text = critiqueText(item, level, lang);
+        assert.ok(text.length > 10 && !text.includes('undefined'), `${lang} ${level} ${item.rule}: ${text}`);
+      }
+    }
+  }
+  assert.match(critiqueText(items[0], 'intermediate', 'en'), /minor 9th/);
+  assert.match(critiqueText(items[0], 'intermediate', 'fi'), /nooni/);
 });

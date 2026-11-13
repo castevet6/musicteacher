@@ -201,8 +201,9 @@ const composerPanel = createComposerPanel(document.querySelector('#chords'), {
   onApplyPattern: store.applyBassPattern,
   onPlaceGhost: (ghost) => {
     const { ghosts, grid } = store.getState();
-    store.addLaneNote('melody', { start: ghosts.tick, length: gridTicks(grid), midi: ghost.midi });
-    playNote(ghost.midi);
+    store.addLaneNote(ghosts.lane, { start: ghosts.tick, length: gridTicks(grid), midi: ghost.midi });
+    if (ghosts.lane === 'bass') playBass(ghost.midi, { duration: 0.4 });
+    else playNote(ghost.midi);
   },
 });
 const legends = {

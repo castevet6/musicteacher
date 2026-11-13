@@ -488,6 +488,8 @@ Return the top three with distinct reasons where possible (`chord-tone`, `step`,
 
 - Bass ghosts reuse `suggestNextNotes` with bass weights: root +4, 5th +2, approach into the next slot's root +3, range clamped to the bass roll.
 
+Milestone 13 settled the details. `critiqueBass` returns `[{ rule, noteIndex, data }]` like `critiqueLane`, with `noteIndex` counting bass notes, and each rule flags a bass note at most once (a whole note clashing on beats 1 and 3 is one remark). Rules are listed at both levels; `BASS_RULES` holds the ids. A chromatic walking approach on beat 4 is never flagged, because no rule looks at beats 2 and 4. Bass ghosts are `suggestNextNotes(…, { voice: 'bass', loop })`. An approach is a pitch a half step from the next filled slot's root (the first slot when looping), and it is offered only when the ghost cell lies in the last beat of its slot. Approach pitches pass the in-key filter. Two reasons are added: `root` and `approach`. With no bass yet, the ghosts are the chord's root in C2–B2, then the 5th and the 3rd above it. The state computes ghosts for the selected note's lane, and with nothing selected for the melody.
+
 ### 10.8 Golden cases
 
 Melody fit, C major, one chord per bar unless noted, grid 1/8:

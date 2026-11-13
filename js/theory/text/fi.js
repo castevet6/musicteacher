@@ -297,7 +297,11 @@ const CRITIQUE_NAMES = {
   'big-leap': { beginner: 'Iso hyppy', intermediate: 'Hyppy ilman paluuta' },
   'bar-no-chord-tone': { beginner: 'Tahti ohittaa soinnun', intermediate: 'Tahdissa ei soinnun säveliä' },
   'ends-off-chord': { beginner: 'Lopetus soinnun ulkopuolella', intermediate: 'Päättyy sointuun kuulumattomaan säveleen' },
+  'clash-with-melody': { beginner: 'Basso hankaa melodiaa vasten', intermediate: 'Riita melodian kanssa' },
+  'not-chord-tone-at-change': { beginner: 'Basso ohittaa uuden soinnun', intermediate: 'Sointuun kuulumaton sävel soinnun vaihtuessa' },
+  'parallel-octaves': { beginner: 'Basso matkii melodiaa', intermediate: 'Rinnakkaiset oktaavit' },
 };
+const BASS_INTERVALS = { m9: 'pienen noonin', tritone: 'tritonuksen' };
 
 const critiqueName = (rule, level) => pick(level, CRITIQUE_NAMES[rule]);
 
@@ -335,6 +339,23 @@ function critiqueText({ rule, data }, level) {
         beginner: `Viimeinen sävel ${n} ei kuulu sointuun ${c}. Soinnun säveleen päättyminen tuntuu valmiilta.`,
         intermediate: `Kappale päättyy säveleen ${n}, joka ei kuulu sointuun ${c} (${data.label}).`,
       });
+    case 'clash-with-melody': {
+      const m = N(data.melodyNote);
+      return pick(level, {
+        beginner: `Basson ${n} ja melodian ${m} hankaavat toisiaan vahvalla iskulla. Siirrä toista niistä.`,
+        intermediate: `Basso ${n} ja melodia ${m} muodostavat ${BASS_INTERVALS[data.interval]} tahdin ${data.bar} iskulla ${data.beat}${c ? ` soinnun ${c} aikana` : ''}.`,
+      });
+    }
+    case 'not-chord-tone-at-change':
+      return pick(level, {
+        beginner: `Kun ${c} alkaa, basso soittaa sävelen ${n}, joka ei kuulu sointuun. Aloita tahti pohjasävelestä.`,
+        intermediate: `Basso soittaa sävelen ${n} (${data.label}), kun ${c} alkaa tahdissa ${data.bar}; vaihdos kuuluu selvimmin soinnun sävelestä, yleensä pohjasävelestä.`,
+      });
+    case 'parallel-octaves':
+      return pick(level, {
+        beginner: `Basso seuraa melodiaa oktaavin päässä säveleen ${n}, joten se ei tuo mitään omaa. Liiku toiseen suuntaan.`,
+        intermediate: `Basso ja melodia liikkuvat rinnakkaisina oktaaveina säveliin ${n} ja ${N(data.melodyNote)}; basso menettää oman linjansa.`,
+      });
     default:
       return '';
   }
@@ -347,6 +368,8 @@ const GHOST_REASONS = {
   step: { beginner: 'liikkuu yhden askeleen', intermediate: 'asteittain' },
   'leap-to-chord-tone': { beginner: 'hyppää soinnun säveleen', intermediate: 'hyppy soinnun säveleen' },
   'scale-tone': { beginner: 'kuuluu asteikkoon', intermediate: 'asteikon sävel' },
+  root: { beginner: 'soinnun pohjasävel: vakaa pohja', intermediate: 'pohjasävel' },
+  approach: { beginner: 'johdattaa seuraavaan sointuun', intermediate: 'kromaattinen lähestyminen seuraavaan pohjasäveleen' },
 };
 const ghostReasonText = (reason, level) => pick(level, GHOST_REASONS[reason] ?? { intermediate: reason });
 

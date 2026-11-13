@@ -215,27 +215,27 @@ export function createComposerPanel(container, {
     ];
   }
 
-  /** One critique item as a list entry; clicking it selects the note on the roll. */
-  function remarkItem(state, item, { withBar = false } = {}) {
+  /** One critique item as a list entry; clicking it selects the note on its roll. */
+  function remarkItem(state, item, { withBar = false, lane = 'melody' } = {}) {
     const { level, lang } = state;
-    const note = state.melody.notes[item.noteIndex];
+    const note = state[lane].notes[item.noteIndex];
     return h('li', { 'data-rule': item.rule },
       h('button', {
         type: 'button',
         class: 'remark',
-        'data-id': `remark-${item.noteIndex}-${item.rule}`,
-        onclick: () => onSelectNote({ lane: 'melody', start: note.start }),
+        'data-id': `${lane === 'bass' ? 'bass-' : ''}remark-${item.noteIndex}-${item.rule}`,
+        onclick: () => onSelectNote({ lane, start: note.start }),
       },
       h('span', { class: 'remark-name' }, critiqueName(item.rule, level, lang)),
       withBar && h('span', { class: 'remark-where' }, ui(lang).composer.remarkAt(item.data.bar)),
       h('span', { class: 'remark-text' }, prettyText(critiqueText(item, level, lang)))));
   }
 
-  /** The next-note ideas as buttons; clicking one places that note. */
-  function ghostSection(state) {
+  /** The next-note ideas for `lane` as buttons; clicking one places that note. */
+  function ghostSection(state, lane = 'melody') {
     const { level, lang, ghosts } = state;
     const text = ui(lang).composer;
-    if (ghosts.lane !== 'melody' || !ghosts.ghosts.length) return null;
+    if (ghosts.lane !== lane || !ghosts.ghosts.length) return null;
     const bar = Math.floor(ghosts.tick / 48) + 1;
     return h('section', { class: 'ghost-ideas' },
       h('h3', {}, text.nextNotes(bar)),
@@ -296,14 +296,16 @@ export function createComposerPanel(container, {
     ];
   }
 
-  function remarksSection(state) {
+  /** Every remark on `lane`, with its bar; null while the lane is empty. */
+  function remarksSection(state, lane = 'melody') {
     const text = ui(state.lang).composer;
-    if (!state.melody.notes.length) return null;
-    return h('section', { class: 'remarks' },
-      h('h3', {}, text.pieceRemarks),
-      state.critique.length
-        ? h('ul', { class: 'remark-list' }, state.critique.map((it) => remarkItem(state, it, { withBar: true })))
-        : h('p', { class: 'hint' }, text.allGood));
+    if (!state[lane].notes.length) return null;
+    const items = lane === 'bass' ? state.bassCritique : state.critique;
+    return h('section', { class: 'remarks', 'data-lane': lane },
+      h('h3', {}, lane === 'bass' ? text.bassRemarks : text.pieceRemarks),
+      items.length
+        ? h('ul', { class: 'remark-list' }, items.map((it) => remarkItem(state, it, { withBar: true, lane })))
+        : h('p', { class: 'hint' }, lane === 'bass' ? text.bassAllGood : text.allGood));
   }
 
   /** The last Suggest key results; picking one changes the key without moving a note. */
@@ -341,11 +343,13 @@ export function createComposerPanel(container, {
     const text = ui(state.lang).composer;
     const about = aboutSection(state);
     const remarks = remarksSection(state);
+    const bassRemarks = remarksSection(state, 'bass');
     return [
       h('h2', {}, text.pieceTitle),
       keyGuessSection(state),
       remarks,
-      about ?? (remarks ? null : h('p', { class: 'hint' }, text.hintPiece)),
+      bassRemarks,
+      about ?? (remarks || bassRemarks ? null : h('p', { class: 'hint' }, text.hintPiece)),
     ];
   }
 
@@ -390,8 +394,20 @@ export function createComposerPanel(container, {
   function bassTab(state) {
     const text = ui(state.lang).composer;
     const index = selectedIndex(state, 'bass');
-    const head = index < 0 ? [h('h2', {}, text.bassTitle), h('p', { class: 'hint' }, text.hintBass)] : noteSummary(state, 'bass', index);
-    return [...head, patternSection(state)];
+    if (index < 0) {
+      return [h('h2', {}, text.bassTitle), h('p', { class: 'hint' }, text.hintBass), remarksSection(state, 'bass'), patternSection(state)];
+    }
+    const remarks = state.bassCritique.filter((it) => it.noteIndex === index);
+    return [
+      ...noteSummary(state, 'bass', index),
+      h('section', { class: 'remarks' },
+        h('h3', {}, text.remarks),
+        remarks.length
+          ? h('ul', { class: 'remark-list' }, remarks.map((it) => remarkItem(state, it, { lane: 'bass' })))
+          : h('p', { class: 'hint' }, text.noRemarks)),
+      ghostSection(state, 'bass'),
+      patternSection(state),
+    ];
   }
 
   const TABS = { chord: chordTab, melody: melodyTab, bass: bassTab, piece: pieceTab };

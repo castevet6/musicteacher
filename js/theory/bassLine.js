@@ -2,8 +2,8 @@
 // the melody map with the two notes a bass leans on most picked out: the chord
 // root (tier `root`) and its fifth (tier `fifth`).
 
-import { addNote, slotSpan } from './composition.js';
-import { cellTiers, laneFit } from './melodyFit.js';
+import { TICKS_PER_BAR, TICKS_PER_BEAT, addNote, noteAt, slotAtTick, slotSpan } from './composition.js';
+import { cellTiers, emptySlotTiers, laneFit } from './melodyFit.js';
 import { mod12, pcOf } from './notes.js';
 
 /** The bass roll's range, E1 to G3, whatever the instrument. */
@@ -143,4 +143,86 @@ export function applyPattern(bass, pattern, slots, slotIndex = null) {
   let lane = { notes: bass.notes.filter((n) => !inTarget(n)) };
   for (const note of pattern.notes.filter(inTarget)) lane = addNote(lane, note);
   return lane;
+}
+
+// ---------- Critique ----------
+
+/** The bass rules, in the order they are listed. See IMPLEMENTATION-PLAN.md §10.7. */
+export const BASS_RULES = ['clash-with-melody', 'not-chord-tone-at-change', 'parallel-octaves'];
+
+const isChordTone = (entry) => plainTier(entry.tier) === 'chord';
+
+/** 'm9' for a minor 9th (or wider by octaves), 'tritone' for a tritone, else null. */
+function clashOf(bassMidi, melodyMidi) {
+  const size = Math.abs(melodyMidi - bassMidi);
+  if (size >= 13 && size % 12 === 1) return 'm9';
+  if (size % 12 === 6) return 'tritone';
+  return null;
+}
+
+/**
+ * `[{ rule, noteIndex, data }]` for the bass lane against its chords and the
+ * melody, in bass-note order (noteIndex counts bass notes). Each rule flags a
+ * bass note once. `tiers` may pass bassTiers() already computed.
+ */
+export function critiqueBass(key, slots, bass, melody, { analyses, tiers = bassTiers(key, slots, analyses) } = {}) {
+  const empty = emptySlotTiers(key);
+  const at = (tick) => {
+    const slot = slotAtTick(slots, tick);
+    return { chord: slot?.chord ?? null, entries: slot ? tiers[slot.index] : empty };
+  };
+  const items = [];
+  const seen = new Set();
+  const flag = (rule, note, tick, data) => {
+    const noteIndex = bass.notes.indexOf(note);
+    if (seen.has(`${rule}@${noteIndex}`)) return;
+    seen.add(`${rule}@${noteIndex}`);
+    const { chord, entries } = at(tick);
+    const entry = entries[note.midi % 12];
+    items.push({
+      rule,
+      noteIndex,
+      data: {
+        note: entry.note, midi: note.midi, chord, label: entry.label, tier: plainTier(entry.tier),
+        bar: Math.floor(tick / TICKS_PER_BAR) + 1, beat: Math.floor((tick % TICKS_PER_BAR) / TICKS_PER_BEAT) + 1,
+        ...data,
+      },
+    });
+  };
+  const melodyNote = (tick, midi) => ({ melodyNote: at(tick).entries[midi % 12].note, melodyMidi: midi });
+  const end = bass.notes.reduce((max, n) => Math.max(max, n.start + n.length), 0);
+
+  // A minor 9th or a tritone between bass and melody on beat 1 or 3. Over a
+  // dom7 the tritone between its 3rd and 7th is the point, so chord tones pass.
+  for (let tick = 0; tick < end; tick += 2 * TICKS_PER_BEAT) {
+    const low = noteAt(bass, tick);
+    const high = noteAt(melody, tick);
+    const interval = low && high && clashOf(low.midi, high.midi);
+    if (!interval) continue;
+    const { chord, entries } = at(tick);
+    if (chord?.quality === 'dom7' && isChordTone(entries[low.midi % 12]) && isChordTone(entries[high.midi % 12])) continue;
+    flag('clash-with-melody', low, tick, { interval, ...melodyNote(tick, high.midi) });
+  }
+
+  // The bass note sounding as a chord arrives should belong to that chord.
+  for (const slot of slots) {
+    if (!slot.chord) continue;
+    const { start } = slotSpan(slot);
+    const note = noteAt(bass, start);
+    if (note && !isChordTone(tiers[slot.index][note.midi % 12])) flag('not-chord-tone-at-change', note, start, {});
+  }
+
+  // Bass and melody an octave or two apart moving by the same interval.
+  bass.notes.forEach((note, i) => {
+    const prev = bass.notes[i - 1];
+    if (!prev || prev.midi === note.midi) return;
+    const before = noteAt(melody, prev.start);
+    const after = noteAt(melody, note.start);
+    if (!before || !after) return;
+    const gap = after.midi - note.midi;
+    if (gap !== before.midi - prev.midi || gap === 0 || gap % 12 !== 0) return;
+    flag('parallel-octaves', note, note.start, { interval: 'octave', ...melodyNote(note.start, after.midi) });
+  });
+
+  return items.sort((a, b) => a.noteIndex - b.noteIndex || BASS_RULES.indexOf(a.rule) - BASS_RULES.indexOf(b.rule));
 }
