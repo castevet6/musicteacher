@@ -149,6 +149,8 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
     store.suggestKey();
   },
   onSolo: store.toggleSolo,
+  onMixLevel: store.setMixLevel,
+  onEditSound: store.openSoundEditor,
   onTitle: store.setTitle,
   onUndo: store.undo,
   onExport: exportComposition,

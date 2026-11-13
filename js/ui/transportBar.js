@@ -5,11 +5,15 @@ import { GRIDS, STYLES, isAudible } from '../theory/composition.js';
 import { ui } from './strings.js';
 
 const MIX_LANES = ['chords', 'melody', 'bass'];
+// The click lane has a fader only: no mute, solo or sound editor.
+const LEVEL_LANES = [...MIX_LANES, 'click'];
+const DEFAULT_LEVEL = 75;
 
 export function createTransportBar(container, {
   onPlay, onPlayFrom, onTempo, onLoop, onClickTrack, onGrid, onStyle, onMute, onSolo, onSuggestKey,
-  onTitle, onUndo, onExport, onImport,
+  onTitle, onUndo, onExport, onImport, onMixLevel, onEditSound,
 }) {
+  const fader = (lane) => `<input type="range" class="mix-level" name="level-${lane}" min="0" max="100" step="1">`;
   container.innerHTML = `
     <div class="file-bar" role="group" data-label="aria-label:fileGroup">
       <label class="field title-field"><span data-label="title"></span>
@@ -39,7 +43,13 @@ export function createTransportBar(container, {
             <span class="mix-name" data-label="lanes.${lane}"></span>
             <button type="button" class="btn mix-btn" data-mix="mute" aria-pressed="false" data-label="mute"></button>
             <button type="button" class="btn mix-btn" data-mix="solo" aria-pressed="false" data-label="solo"></button>
+            ${fader(lane)}
+            <button type="button" class="btn mix-btn mix-edit" data-act="sound">🎛</button>
           </span>`).join('')}
+        <span class="mix-lane" data-lane="click">
+          <span class="mix-name" data-label="lanes.click"></span>
+          ${fader('click')}
+        </span>
       </div>
     </div>`;
 
@@ -52,7 +62,10 @@ export function createTransportBar(container, {
   const grid = $('[name=grid]');
   const style = $('[name=style]');
   const suggestKey = $('[data-act=suggest-key]');
-  const mixLanes = [...container.querySelectorAll('.mix-lane')];
+  const allLanes = [...container.querySelectorAll('.mix-lane')];
+  // Mute and solo exist only on the sound lanes; the click lane is skipped below.
+  const mixLanes = allLanes.filter((el) => el.dataset.lane !== 'click');
+  const faders = Object.fromEntries(LEVEL_LANES.map((lane) => [lane, $(`[name=level-${lane}]`)]));
   const title = $('[name=title]');
   const undo = $('[data-act=undo]');
   const exportButton = $('[data-act=export]');
@@ -73,6 +86,10 @@ export function createTransportBar(container, {
       const name = text.lanes[el.dataset.lane];
       el.querySelector('[data-mix=mute]').setAttribute('aria-label', text.muteLane(name));
       el.querySelector('[data-mix=solo]').setAttribute('aria-label', text.soloLane(name));
+      el.querySelector('[data-act=sound]').setAttribute('aria-label', text.editSound(name));
+    }
+    for (const [lane, el] of Object.entries(faders)) {
+      el.setAttribute('aria-label', text.levelLane(text.lanes[lane]));
     }
     renderedLang = lang;
   }
@@ -105,7 +122,19 @@ export function createTransportBar(container, {
   for (const el of mixLanes) {
     el.querySelector('[data-mix=mute]').addEventListener('click', () => onMute(el.dataset.lane));
     el.querySelector('[data-mix=solo]').addEventListener('click', () => onSolo(el.dataset.lane));
+    el.querySelector('[data-act=sound]').addEventListener('click', () => onEditSound(el.dataset.lane));
   }
+  for (const [lane, el] of Object.entries(faders)) {
+    el.addEventListener('input', () => onMixLevel(lane, Number(el.value)));
+    el.addEventListener('dblclick', () => {
+      el.value = String(DEFAULT_LEVEL);
+      onMixLevel(lane, DEFAULT_LEVEL);
+    });
+  }
+
+  // A fader is being dragged while it has focus and the pointer is held on it.
+  // Only then is its value left alone; otherwise state wins.
+  const dragging = (el) => document.activeElement === el && el.matches(':active');
 
   return {
     render(state) {
@@ -139,6 +168,10 @@ export function createTransportBar(container, {
         el.classList.toggle('silent', !isAudible(state.mix, lane));
         el.querySelector('[data-mix=mute]').setAttribute('aria-pressed', String(state.mix[lane] === 'mute'));
         el.querySelector('[data-mix=solo]').setAttribute('aria-pressed', String(state.mix[lane] === 'solo'));
+        el.querySelector('[data-act=sound]').setAttribute('aria-pressed', String(state.soundEditor?.lane === lane));
+      }
+      for (const [lane, el] of Object.entries(faders)) {
+        if (!dragging(el)) el.value = String(state.levels[lane]);
       }
     },
   };

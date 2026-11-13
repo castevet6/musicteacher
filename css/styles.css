@@ -1,4 +1,5 @@
 :root {
+  --fader-width: 80px;
   --bg: #f5f3ee;
   --surface: #ffffff;
   --text: #1f2328;
@@ -434,6 +435,7 @@ body {
 .mix-name { margin-right: 2px; }
 .mix-lane.silent .mix-name { text-decoration: line-through; opacity: 0.7; }
 .mix-btn { min-width: 32px; min-height: 32px; padding: 2px 6px; font-size: 0.8rem; font-weight: 600; }
+.mix-level { width: var(--fader-width); accent-color: var(--accent); }
 .mix-btn[data-mix="mute"][aria-pressed="true"] { background: var(--muted); border-color: var(--muted); color: #fff; }
 .mix-btn[data-mix="solo"][aria-pressed="true"] { background: var(--guide); border-color: var(--guide); color: #111; }
 
@@ -537,8 +539,17 @@ body {
 .slot-roman { font-family: Georgia, "Times New Roman", serif; color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 
 @media (max-width: 600px) {
-  :root { --bar-width: 132px; --roll-gutter: 42px; --roll-height: 260px; }
+  :root { --bar-width: 132px; --roll-gutter: 42px; --roll-height: 260px; --fader-width: 64px; }
   .strip-toolbar, .transport { gap: 8px 10px; }
+  .mix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; width: 100%; }
+  .mix-lane { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; align-items: center; gap: 4px; }
+  .mix-lane .mix-name { grid-row: 1; grid-column: 1 / -1; }
+  .mix-lane .mix-btn { grid-row: 2; }
+  .mix-lane [data-mix=mute] { grid-column: 1; }
+  .mix-lane [data-mix=solo] { grid-column: 2; }
+  .mix-edit { grid-column: 3; }
+  .mix-lane .mix-level { grid-row: 3; grid-column: 1 / -1; justify-self: start; }
+  .mix-lane[data-lane=click] .mix-level { grid-row: 2; }
 }
 
 /* ---------- Piano roll ---------- */
