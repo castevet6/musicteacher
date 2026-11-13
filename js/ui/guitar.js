@@ -2,6 +2,7 @@ import { applyHighlights, notePosition, onPositionClick, svgEl } from './highlig
 import { ui } from './strings.js';
 
 const STRINGS = [64, 59, 55, 50, 45, 40]; // high e on top, as in tab
+const BASS_STRINGS = new Set([55, 50, 45, 40]); // G D A E, a bass guitar's strings an octave up
 const FRETS = 15;
 const OPEN_WIDTH = 50;
 const STRING_GAP = 36;
@@ -72,6 +73,8 @@ export function createGuitar(container, { onNoteClick }) {
         const x1 = fret === 0 ? OPEN_WIDTH : fretX[fret];
         const { hit } = notePosition(next, {
           midi: openMidi + fret,
+          // A bass line shows an octave up on the four low strings, as a bass guitar reads.
+          bassMidi: BASS_STRINGS.has(openMidi) ? openMidi + fret - 12 : '',
           cx: (x0 + x1) / 2,
           cy: stringY(s),
           r,

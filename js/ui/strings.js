@@ -27,6 +27,8 @@ const en = {
     fitClash: 'Clashes',
     ghost: 'Next-note idea (click to place)',
     bassFifth: 'Chord fifth (bass map)',
+    soundingMelody: 'Melody note playing',
+    soundingBass: 'Bass note playing (guitar: an octave up on the low strings)',
   },
   controls: {
     mode: 'Mode',
@@ -212,6 +214,8 @@ const fi = {
     fitClash: 'Riitelee',
     ghost: 'Seuraavan sävelen idea (napsauta sijoittaaksesi)',
     bassFifth: 'Soinnun kvintti (bassokartta)',
+    soundingMelody: 'Soiva melodiasävel',
+    soundingBass: 'Soiva bassosävel (kitarassa oktaavia ylempänä matalilla kielillä)',
   },
   controls: {
     mode: 'Tila',

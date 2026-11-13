@@ -196,6 +196,8 @@ body {
 .swatch-parent { background: var(--parent-tone); }
 .swatch-avoid { background: var(--avoid); }
 .swatch-guide { background: transparent; box-shadow: inset 0 0 0 3px var(--guide); }
+.swatch-sounding { background: var(--guide); box-shadow: inset 0 0 0 2px var(--ring); }
+.swatch-sounding-bass { background: var(--fifth); border: 2px dashed var(--ring); box-sizing: border-box; }
 .swatch-ghost { background: color-mix(in srgb, var(--accent) 18%, transparent); border: 1.5px dashed var(--accent); border-radius: 3px; }
 
 /* ---------- Note positions (shared by guitar and piano) ---------- */
@@ -235,6 +237,8 @@ body {
 .pos.guide-tone .dot { stroke: var(--guide); stroke-width: 3.5; }
 .pos.sounding .dot, .pos.sounding .label { opacity: 1; }
 .pos.sounding .dot { fill: var(--guide); stroke: var(--ring); stroke-width: 3; }
+.pos.sounding-bass .dot { fill: var(--fifth); stroke-dasharray: 4 2; }
+.pos.sounding-bass .label { fill: var(--dot-text); }
 .pos.tension .role, .pos.parent-tone .role { fill: var(--tension); }
 .pos.avoid .role { fill: var(--avoid); }
 .pos.blue-note .role { fill: var(--blue-note); }

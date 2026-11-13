@@ -13,13 +13,17 @@ Scales: major, natural minor, major pentatonic, minor pentatonic, blues.
 
 ### Composer
 
-Switch the header to **Composer** to build a chord progression of 1–16 bars in 4/4 (a bar holds one chord, or two with **½**). Load a preset (I–V–vi–IV, ii–V–I, 12-bar blues, Andalusian and more) or click a bar and pick a chord: the key's diatonic chords, borrowed chords, secondary dominants, or any custom chord.
+Switch the header to **Composer** to write a short piece (1–16 bars in 4/4) with chords, a melody and a bass line. The app helps with whichever part is missing or weak; it never writes the music for you.
 
-Select a bar, or press **Play**, and the instrument shows what to play over that chord: chord tones (R 3 5 7), scale tones labelled as tensions (9, 11, 13), "also fits" notes from the parent scale when a pentatonic or blues scale is selected, the blue note, and avoid notes. The panel explains the chord's function, the guide tones that lead into the next chord, likely next chords (one click to insert), and the cadences and ending of the whole progression. A **Beginner / Intermediate** switch changes how the explanations are worded.
+- **Chords.** Load a preset (I–V–vi–IV, ii–V–I, 12-bar blues, Andalusian and more) or click a bar and pick a chord: the key's diatonic chords, borrowed chords, secondary dominants, or any custom chord. A bar holds one chord, or two with **½**. With a bar selected, the instrument shows what to play over its chord: chord tones (R 3 5 7), tensions (9 11 13), "also fits" notes, the blue note and avoid notes. The panel explains the chord's function, the guide tones into the next chord and likely next chords.
+- **Melody.** Draw on the melody roll: click to add a note, drag to lengthen it, click a note to select it and again to delete it. The grid is 1/4, 1/8 or 1/16. The map behind the notes colours each pitch by how it sits over the chord. The app flags notes that rub (a held avoid note, an unresolved outside note, a big leap left hanging, a bar with no chord tone, an ending off the chord) and offers next-note ideas you can click to place.
+- **Harmonising.** For a bar that has melody, the Chord tab ranks the chords that fit it; a dot on each bar shows how well its chord fits. **Suggest key** guesses the key from the notes and applies it without moving them.
+- **Bass.** The bass roll works the same way, with a map that marks each chord's root and fifth. Patterns (root, root–fifth, octaves, alternating, walking) fill all bars or the selected one, and the app warns where the bass clashes with the melody, misses the chord at a change or moves in octaves with it.
+- **Playback.** **Play** starts at bar 1, and **▶ Bar N** starts at the selected bar. Each lane has its own sound with mute and solo. The instrument lights the sounding notes; a guitar shows the bass an octave up on its four low strings.
+- **Style and level.** The style (pop, jazz, folk) changes the chord ranking, the warnings and the bass patterns. **Beginner / Intermediate** changes how much is explained.
+- **Files and undo.** Export saves the piece as a JSON file named after its title, and Import loads one back. **Undo** steps back through edits. Nothing is stored in the browser.
 
-Chords are stored relative to the key, so changing the root transposes the progression. Changing the scale keeps the chords and re-analyses them.
-
-The side panel has a **Chord** tab for the selected bar and a **Piece** tab for the whole progression; it switches to whichever matches what you clicked. The instrument can be hidden to give the timeline more room. A melody roll, melody and chord assistance, and a bass roll are planned next (see IMPLEMENTATION-PLAN.md §10).
+Chords are stored relative to the key, so a new root moves them with it; the melody and bass are actual pitches, and the app offers to transpose them. The panel's tabs (Chord, Melody, Bass, Piece) follow what you click. The instrument can be hidden to give the rolls more room.
 
 ### Languages
 

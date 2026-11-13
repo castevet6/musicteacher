@@ -14,8 +14,22 @@ export function displayName(state, pc) {
   return prettyName(defaultSpelling(pc, key.accidentals), state.lang);
 }
 
-/** The MIDI notes the transport is sounding right now, lit on every matching position. */
-const soundingMidis = (state) => new Set(Object.values(state.playback.sounding).filter(Boolean).map((n) => n.midi));
+/**
+ * Lights the notes the transport is sounding on every matching position. The
+ * melody matches `data-midi`. The bass matches `data-bass-midi`, which the guitar
+ * sets an octave below `data-midi` on its four low strings (where a bass guitar's
+ * notes sit, an octave up) and leaves out elsewhere; positions with no such
+ * attribute match the bass at their own pitch.
+ */
+function markSounding(el, state) {
+  const { melody, bass } = state.playback.sounding;
+  const midi = Number(el.dataset.midi);
+  const bassAttr = el.dataset.bassMidi;
+  const bassMidi = bassAttr === undefined ? midi : bassAttr === '' ? null : Number(bassAttr);
+  const isBass = bass !== null && bass.midi === bassMidi;
+  el.classList.toggle('sounding', melody?.midi === midi || isBass);
+  el.classList.toggle('sounding-bass', isBass);
+}
 
 // Composer: classes for each tier from notesOverChord().
 const TIER_CLASSES = { chord: 'chord-tone', scale: 'tension', parent: 'parent-tone', avoid: 'avoid', blue: 'blue-note' };
@@ -24,7 +38,6 @@ const TIER_CLASSES = { chord: 'chord-tone', scale: 'tension', parent: 'parent-to
 function applyChordTiers(positions, state) {
   const { selected, focus } = state;
   const guide = new Set(focus.guideTones.map((m) => pcOf(m.from)));
-  const sounding = soundingMidis(state);
   for (const el of positions) {
     const pc = Number(el.dataset.pc);
     const midi = Number(el.dataset.midi);
@@ -41,7 +54,7 @@ function applyChordTiers(positions, state) {
     cl.toggle('muted', info.tier === 'outside');
     cl.toggle('selected', isSelectedPc && selected.midi === midi);
     cl.toggle('selected-pc', isSelectedPc && selected.midi !== midi);
-    cl.toggle('sounding', sounding.has(midi));
+    markSounding(el, state);
     el.dataset.tier = info.tier;
 
     const name = prettyName(info.note, state.lang);
@@ -65,7 +78,6 @@ export function applyHighlights(positions, state) {
   const { key, selected, activeChord } = state;
   const roles = new Map(activeChord?.tones.map((t) => [pcOf(t.note), t.role]) ?? []);
   const names = Array.from({ length: 12 }, (_, pc) => displayName(state, pc));
-  const sounding = soundingMidis(state);
 
   for (const el of positions) {
     const pc = Number(el.dataset.pc);
@@ -82,7 +94,7 @@ export function applyHighlights(positions, state) {
     cl.toggle('out-of-scale', isSelectedPc && !key.scalePcs.has(pc));
     cl.toggle('chord-tone', role !== undefined);
     cl.toggle('muted', Boolean(activeChord) && role === undefined);
-    cl.toggle('sounding', sounding.has(midi));
+    markSounding(el, state);
 
     el.querySelector('.label').textContent = names[pc];
     el.querySelector('.role').textContent = role ?? '';
@@ -101,10 +113,11 @@ export function svgEl(tag, attrs = {}, parent) {
 }
 
 /** A focusable note position: optional hit shape, dot, note label, role label. */
-export function notePosition(parent, { midi, cx, cy, r, className = '' }) {
+export function notePosition(parent, { midi, bassMidi, cx, cy, r, className = '' }) {
   const g = svgEl('g', {
     class: `pos ${className}`.trim(),
     'data-midi': midi,
+    'data-bass-midi': bassMidi,
     'data-pc': midi % 12,
     tabindex: 0,
     role: 'button',

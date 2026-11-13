@@ -26,5 +26,6 @@ The second aim is a composing assistant. In the Composer view the user enters a 
 - Bass help, after the two above: a bass roll with the same fit colouring, style patterns (root, root–fifth, alternating, walking) and warnings where the bass clashes with the melody.
 - A style setting (pop/rock, jazz, folk) changes what the assistant prefers and what it warns about.
 - A composition can be saved to and loaded from a JSON file. Nothing is stored in the browser; the session still resets on reload.
+- Playback lights the sounding notes on the instrument. A guitar shows the bass an octave up on its four low strings, where a bass guitar's notes sit.
 
-The detailed decisions are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) §10.
+All of the above is built. The detailed decisions are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) §10, and the end-to-end check is in §8. Still out of scope: polyphony, triplets and swing, sections and repeats, melody generation, MIDI files and sharing a composition by URL.

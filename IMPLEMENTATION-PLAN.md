@@ -318,6 +318,18 @@ Labels show the key-correct spelling. A chromatic note uses `suggestions.note` w
 5. Click chords: check the tones and role labels, the audio, and that clicking again clears the chord.
 6. In the browser devtools, set the width to 375 px and re-check steps 3–5 by tapping.
 
+Composer walkthrough (§10). Run it on guitar and on piano, at desktop width and at 375 px, in English and once in Finnish. At 375 px the page never scrolls sideways; only the timeline and the instrument do.
+
+7. Switch to Composer, load I–V–vi–IV, select bar 1: the Chord tab shows the tiers over C and the instrument matches them.
+8. Draw an F4 half note on beat 1 of bar 1 (over C): F turns avoid-coloured, the Melody tab lists the avoid rule, bar 1's fit dot shows a clash, and the first next-note idea after F is E4. Delete F.
+9. Draw E4 and G4 halves in bar 2, press Clear on the chord strip and select bar 2: the Chord tab ranks C first; picking it fills the bar and its dot shows a good fit.
+10. Reload I–V–vi–IV and press Suggest key: three keys are listed with their reasons. Applying one changes the key but not the notes or the chords, and Undo puts the key back.
+11. In the Bass tab apply Walking to all bars, play: the bass sounds and lights an octave up on the guitar's four low strings (the piano at pitch, below its range when under C2). Mute and solo each lane; ▶ Bar 2 starts at bar 2.
+12. Draw a bass E2 under melody F4 on beat 1 of a C bar: the clash remark appears with a marker on the bass note.
+13. Change the root to D and accept the transpose: chords, melody and bass all move up a tone.
+14. Export, press Clear on both rolls, Import the file and confirm: the title, style, bpm, chords and both lanes return. Delete a note and Undo it.
+15. Switch to Beginner: only rules 1, 3 and 5 stay in the Melody list. Switch to Suomi: every tab, the legend and the remarks are in Finnish, and B natural reads H.
+
 ## 9. Progression mode
 
 A header toggle switches between **Explore** (§1–§8) and **Progression**. Key, scale and instrument are shared.
