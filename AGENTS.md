@@ -6,6 +6,7 @@ Music Teacher is a static web page that teaches scales and chords on a guitar ne
 
 - `npm test` runs the theory tests with Node's built-in runner.
 - `npm run serve` serves the page at http://localhost:8000. ES modules do not load from `file://`, so always serve the page over HTTP.
+- Browser checks are Playwright scripts in `~/musicteacher-e2e/`, kept outside the repo so the page stays free of dependencies. Build every new check on `lib.mjs` there: it owns the browser setup, error collection, fail-fast timeouts, the common page moves (Composer, roll clicks, export/import, language) and the OK/FAIL report with an exit code. That leaves each script as just its steps; `sound-m3.mjs` is the model. Run `node <script> 1400`, then `375`, one at a time, while the server is up.
 
 ## Stack
 
