@@ -330,7 +330,7 @@ Composer walkthrough (§10). Run it on guitar and on piano, at desktop width and
 14. Export, press Clear on both rolls, Import the file and confirm: the title, style, bpm, chords and both lanes return. Delete a note and Undo it.
 15. Switch to Beginner: only rules 1, 3 and 5 stay in the Melody list. Switch to Suomi: every tab, the legend and the remarks are in Finnish, and B natural reads H.
 
-Sound walkthrough (§11). Scripted checks: `~/musicteacher-e2e/sound-m2.mjs`, `sound-m3.mjs` and `sound-m4.mjs` at 1400 and 375.
+Sound walkthrough (§11). `npm run e2e` automates steps 7–19: `e2e/composer-walk.mjs` (7–15) and `e2e/sound.mjs` (16–19), plus `e2e/smoke.mjs` for steps 3–6 on both instruments.
 
 16. Play a looping progression: each chord rings until the next one and then fades. Stop silences chords, melody and bass at once.
 17. Drag the Melody fader to 0 and back while playing, then double-click it: it returns to 75. Export and check `levels` in the file.

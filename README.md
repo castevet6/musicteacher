@@ -43,6 +43,8 @@ Then open http://localhost:8000. Any static file server works.
 
 ```sh
 npm test             # node --test, no dependencies
+npm run e2e          # browser checks in e2e/, at 1400 and 375 px; needs `npm run serve`,
+                     # `npm install` and `npx playwright install chromium`
 ```
 
 ## Project docs

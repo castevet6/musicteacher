@@ -6,7 +6,7 @@ Music Teacher is a static web page that teaches scales and chords on a guitar ne
 
 - `npm test` runs the theory tests with Node's built-in runner.
 - `npm run serve` serves the page at http://localhost:8000. ES modules do not load from `file://`, so always serve the page over HTTP.
-- Browser checks are Playwright scripts in `~/musicteacher-e2e/`, kept outside the repo so the page stays free of dependencies. Build every new check on `lib.mjs` there: it owns the browser setup, error collection, fail-fast timeouts, the common page moves (Composer, roll clicks, export/import, language) and the OK/FAIL report with an exit code. That leaves each script as just its steps; `sound-m3.mjs` is the model. Run `node <script> 1400`, then `375`, one at a time, while the server is up.
+- `npm run e2e` runs the browser checks in `e2e/` (Playwright, a dev dependency: `npm install` and `npx playwright install chromium` once) at 1400 and 375 px while the server is up. Build every check on `e2e/lib.mjs`: it owns the browser, error collection, fail-fast timeouts, the common page moves and the OK/FAIL report with an exit code, so a script is just its steps (`sound.mjs` is the model). `e2e/` holds lasting regression checks only: when a feature merges, fold its milestone checks into one feature check added to `e2e/run.mjs`, and delete the rest.
 
 ## Stack
 
@@ -34,7 +34,7 @@ The page is English and Finnish (`state.lang`, `'en' | 'fi'`). Words the theory 
 
 - Every change to `js/theory/` comes with tests. A new scale, chord quality or suggestion rule adds hand-checked golden cases next to the ones in `test/suggest.test.js`.
 - `npm test` is green.
-- For UI changes: serve the page and check both instruments, a chromatic note click and a chord click, at desktop width and at 375 px.
+- For UI changes: `npm run e2e` is green (it covers both instruments, a chromatic note click and a chord click, at desktop width and at 375 px), and the change has its own check in `e2e/`.
 
 ## Style
 
