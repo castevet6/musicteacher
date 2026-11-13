@@ -1,9 +1,10 @@
-import { playBass, playChord, playLead, playNote, setSoundConfig } from './audio/synth.js';
+import { playBass, playChord, playLead, playNote, playPreview, setSoundConfig } from './audio/synth.js';
 import { createTransport } from './audio/transport.js';
 import * as store from './state.js';
 import { BASS_HIGH, BASS_LOW } from './theory/bassLine.js';
 import { CompositionError, fileName, hasContent, gridTicks, parseComposition, serializeComposition } from './theory/composition.js';
 import { LANGS } from './theory/text/index.js';
+import { previewPhrase } from './theory/sounds.js';
 import { createChordPanel } from './ui/chordPanel.js';
 import { createControls } from './ui/controls.js';
 import { createGuitar } from './ui/guitar.js';
@@ -13,6 +14,7 @@ import { createChordStrip } from './ui/chordStrip.js';
 import { createComposerPanel } from './ui/composerPanel.js';
 import { createPiano } from './ui/piano.js';
 import { createRoll } from './ui/roll.js';
+import { createSoundEditor } from './ui/soundEditor.js';
 import { createTransportBar } from './ui/transportBar.js';
 import { createFilePrompt } from './ui/filePrompt.js';
 import { createTransposePrompt } from './ui/transposePrompt.js';
@@ -156,6 +158,14 @@ const transportBar = createTransportBar(document.querySelector('#transport'), {
   onExport: exportComposition,
   onImport: importComposition,
 });
+const soundEditor = createSoundEditor(document.body, {
+  onParam: store.setSoundParam,
+  onPreset: store.applySoundPreset,
+  onReset: store.resetSound,
+  onConfirm: store.confirmSoundEditor,
+  onCancel: store.cancelSoundEditor,
+  onPreview: (lane) => playPreview(lane, previewPhrase(store.getState().key, lane)),
+});
 const filePrompt = createFilePrompt(document.querySelector('#file-prompt'), {
   onConfirm: onConfirmImport,
   onCancel: store.cancelImport,
@@ -234,6 +244,7 @@ store.subscribe((state) => {
     appliedLevels = state.levels;
   }
   const composer = state.mode === 'composer';
+  soundEditor.render(state);
   controls.render(state);
   composerSection.hidden = !composer;
   if (composer) {

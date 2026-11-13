@@ -90,6 +90,31 @@ const en = {
     export: 'Export',
     import: 'Import',
   },
+  sound: {
+    title: { chords: 'Chord sound', melody: 'Melody sound', bass: 'Bass sound' },
+    preset: 'Preset',
+    custom: 'Custom',
+    presets: {
+      chords: { warmPad: 'Warm pad', epiano: 'E-piano', organ: 'Organ', pluck: 'Pluck', classic: 'Classic' },
+      melody: { softLead: 'Soft lead', flute: 'Flute', squareLead: 'Square lead', brightSaw: 'Bright saw', classic: 'Classic' },
+      bass: { classic: 'Classic', round: 'Round', pluckBass: 'Pluck bass', synthBass: 'Synth bass' },
+    },
+    params: {
+      wave: 'Waveform', warmth: 'Warmth', octave: 'Octave layer', cutoff: 'Brightness', resonance: 'Resonance',
+      attack: 'Attack', decay: 'Decay', sustain: 'Sustain', release: 'Release', reverb: 'Reverb',
+    },
+    tips: {
+      wave: 'Oscillator waveform', warmth: 'Detune between two oscillators', octave: 'A sine one octave up',
+      cutoff: 'Low-pass filter cutoff', resonance: 'Filter resonance (Q)', attack: 'Attack time', decay: 'Decay time',
+      sustain: 'Sustain level', release: 'Release time', reverb: 'Reverb send',
+    },
+    waves: { sine: 'Sine', triangle: 'Triangle', square: 'Square', sawtooth: 'Sawtooth' },
+    preview: '▶ Preview',
+    playingHint: 'Playing — changes are heard live',
+    ok: 'OK',
+    cancel: 'Cancel',
+    reset: 'Reset to default',
+  },
   files: {
     replaceAsk: (title) => `Replace the current composition with “${title || 'Untitled'}”? Undo brings it back.`,
     replace: 'Replace',
@@ -279,6 +304,31 @@ const fi = {
     undo: '↶ Kumoa',
     export: 'Vie',
     import: 'Tuo',
+  },
+  sound: {
+    title: { chords: 'Sointujen ääni', melody: 'Melodian ääni', bass: 'Basson ääni' },
+    preset: 'Esiasetus',
+    custom: 'Mukautettu',
+    presets: {
+      chords: { warmPad: 'Lämmin matto', epiano: 'Sähköpiano', organ: 'Urut', pluck: 'Näppäily', classic: 'Klassinen' },
+      melody: { softLead: 'Pehmeä liidi', flute: 'Huilu', squareLead: 'Kanttiliidi', brightSaw: 'Kirkas saha', classic: 'Klassinen' },
+      bass: { classic: 'Klassinen', round: 'Pyöreä', pluckBass: 'Näppäilybasso', synthBass: 'Syntikkabasso' },
+    },
+    params: {
+      wave: 'Aaltomuoto', warmth: 'Lämpö', octave: 'Oktaavikerros', cutoff: 'Kirkkaus', resonance: 'Resonanssi',
+      attack: 'Nousu', decay: 'Vaimeneminen', sustain: 'Kestotaso', release: 'Häivytys', reverb: 'Kaiku',
+    },
+    tips: {
+      wave: 'Oskillaattorin aaltomuoto', warmth: 'Kahden oskillaattorin epävireisyys (detune)', octave: 'Sini oktaavia ylempänä',
+      cutoff: 'Alipäästösuotimen rajataajuus (cutoff)', resonance: 'Suotimen resonanssi (Q)', attack: 'Nousuaika (attack)',
+      decay: 'Vaimenemisaika (decay)', sustain: 'Kestotaso (sustain)', release: 'Häivytysaika (release)', reverb: 'Kaiun määrä (reverb)',
+    },
+    waves: { sine: 'Sini', triangle: 'Kolmio', square: 'Kantti', sawtooth: 'Saha' },
+    preview: '▶ Kuuntele',
+    playingHint: 'Soitto käynnissä — muutokset kuuluvat heti',
+    ok: 'OK',
+    cancel: 'Peruuta',
+    reset: 'Palauta oletus',
   },
   files: {
     replaceAsk: (title) => `Korvataanko nykyinen sävellys sävellyksellä ”${title || 'Nimetön'}”? Kumoa tuo sen takaisin.`,

@@ -29,6 +29,9 @@
   --key-border: #b9b4aa;
 
   --radius: 10px;
+  --sound-width: 440px; /* the sound editor dialog */
+  --sound-label: 96px;
+  --sound-value: 64px;
   --bar-width: 150px; /* one bar in the timeline: the chord strip and the rolls share it */
   --bar-gap: 8px;
   --roll-gutter: 48px; /* the pitch labels left of a roll; the strip is indented to match */
@@ -550,6 +553,53 @@ body {
   .mix-edit { grid-column: 3; }
   .mix-lane .mix-level { grid-row: 3; grid-column: 1 / -1; justify-self: start; }
   .mix-lane[data-lane=click] .mix-level { grid-row: 2; }
+}
+
+/* ---------- Sound editor ---------- */
+
+.sound-editor {
+  box-sizing: border-box;
+  width: min(var(--sound-width), 100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  overflow-y: auto;
+}
+.sound-editor::backdrop { background: rgba(0, 0, 0, 0.4); }
+.sound-body { padding: 20px 22px; }
+.sound-title { margin: 0 0 14px; font-size: 1.1rem; }
+.sound-grid {
+  display: grid;
+  grid-template-columns: minmax(var(--sound-label), auto) minmax(0, 1fr) var(--sound-value);
+  gap: 10px 12px;
+  align-items: center;
+}
+.sound-grid select { grid-column: 2 / -1; min-width: 0; padding: 6px 8px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.sound-label { color: var(--muted); font-size: 0.9rem; }
+.sound-slider { width: 100%; min-width: 0; accent-color: var(--accent); }
+.sound-value { color: var(--muted); font-size: 0.85rem; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sound-hint { margin: 14px 0 0; color: var(--muted); font-size: 0.9rem; }
+.sound-hint[hidden] { display: none; }
+.sound-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.sound-actions .sound-ok { margin-left: auto; background: var(--accent); border-color: var(--accent); color: #fff; }
+
+@media (max-width: 600px) {
+  :root { --sound-label: 84px; --sound-value: 56px; }
+  .sound-editor {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+  }
+  .sound-body { padding: 16px; }
 }
 
 /* ---------- Piano roll ---------- */
