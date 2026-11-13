@@ -548,6 +548,9 @@ body {
 .roll-hint { flex: 1 1 200px; }
 .roll-title { font-weight: 600; font-size: 0.9rem; }
 .roll-hint { color: var(--muted); font-size: 0.8rem; }
+.roll-legend { flex: 1 1 100%; margin: 0; gap: 4px 14px; font-size: 0.78rem; }
+.roll-legend .swatch { border-radius: 3px; }
+.strip-legend { margin: -4px 0 10px; font-size: 0.78rem; gap: 4px 14px; }
 .roll-clear { margin-top: 0; min-height: 32px; padding: 2px 10px; font-size: 0.8rem; }
 
 .roll-body {

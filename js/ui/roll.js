@@ -14,6 +14,19 @@ const MIN_LABEL_WIDTH = 22;
 
 const octaveOf = (midi) => Math.floor(midi / 12) - 1;
 
+// The colour key under each roll's title: [swatch class, key in strings' legend].
+const LEGENDS = {
+  melody: [
+    ['chord', 'chordTone'], ['scale', 'scaleTone'], ['parent', 'alsoFits'], ['blue', 'blueNote'],
+    ['avoid', 'avoid'], ['out', 'outOfScale'], ['ghost', 'ghost'], ['sounding', 'playing'],
+  ],
+  bass: [
+    ['root', 'chordRoot'], ['fifth', 'bassFifth'], ['chord', 'chordTone'], ['scale', 'scaleTone'],
+    ['parent', 'alsoFits'], ['blue', 'blueNote'], ['avoid', 'avoid'], ['out', 'outOfScale'],
+    ['ghost', 'ghost'], ['sounding', 'playing'],
+  ],
+};
+
 export function createRoll(container, handlers) {
   const { lane, range, center = 60, onAdd, onRemove, onResize, onSelect, onAudition, onClear, onToggleMap, currentTick } = handlers;
 
@@ -23,7 +36,9 @@ export function createRoll(container, handlers) {
     h('span', { class: 'roll-title' }),
     h('span', { class: 'roll-hint' }),
     h('button', { type: 'button', class: 'btn subtle roll-map', 'aria-pressed': 'true', onclick: onToggleMap }),
-    h('button', { type: 'button', class: 'btn subtle roll-clear', onclick: onClear }));
+    h('button', { type: 'button', class: 'btn subtle roll-clear', onclick: onClear }),
+    h('ul', { class: 'legend roll-legend' }, LEGENDS[lane].map(([swatch, key]) =>
+      h('li', { 'data-key': key }, h('span', { class: `swatch swatch-${swatch}` }), h('span', { class: 'legend-text' })))));
   const labels = h('div', { class: 'roll-labels' });
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.classList.add('roll-svg');
@@ -323,6 +338,10 @@ export function createRoll(container, handlers) {
       map.setAttribute('aria-pressed', String(state.showMap));
       map.title = state.showMap ? text.hideMap : text.showMap;
       svg.setAttribute('aria-label', text.rollAria(text.lane[lane]));
+      const legendText = ui(state.lang).legend;
+      const legend = head.querySelector('.roll-legend');
+      legend.setAttribute('aria-label', ui(state.lang).legendAria);
+      for (const li of legend.children) li.lastChild.textContent = legendText[li.dataset.key];
       drawLabels(state);
       drawGrid(state);
       scrollIntoView(state);
