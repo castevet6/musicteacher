@@ -157,10 +157,14 @@ export function stopAll() {
   voices.clear();
 }
 
-/** A chord note, struck at `when` (now by default) and held for `duration` seconds. */
+/**
+ * A single note in the chord sound, struck at `when` (now by default) and held
+ * for `duration` seconds. It is as loud as a whole chord was before the sound
+ * editor (1 / LANE_PEAK.chords), since it sounds alone.
+ */
 export function playNote(midi, { when, duration = 1 } = {}) {
   const start = when ?? context().currentTime;
-  voice('chords', midi, start, duration);
+  voice('chords', midi, start, duration, 1 / LANE_PEAK.chords);
 }
 
 /** Play `chord` now, or at audio time `when`, held for `duration` seconds. */
